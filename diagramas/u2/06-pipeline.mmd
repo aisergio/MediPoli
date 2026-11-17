@@ -1,0 +1,11 @@
+flowchart LR
+  DEV["Rama y PR"] --> CI["Build + pruebas"]
+  CI --> TF["Terraform fmt y validate"]
+  TF --> REVIEW["Revisión de resultados"]
+  REVIEW --> MAIN["main"]
+  MAIN --> P["Plan con estado remoto"]
+  P --> D["Aprobación del entorno si aplica"]
+  D --> A["Apply del plan revisado"]
+  A --> V["Segundo plan sin cambios"]
+  V --> E["Evidencia ligada al commit"]
+  P <--> S["S3: dev y prod separados"]

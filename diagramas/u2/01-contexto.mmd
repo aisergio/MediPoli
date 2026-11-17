@@ -1,0 +1,8 @@
+flowchart LR
+  P["Paciente afiliado simulado"] -->|"consulta y gestiona citas"| M["IPS ficticia MediPoli"]
+  F["Profesional empleado"] -->|"consulta su agenda"| M
+  A["Administrador de la IPS"] -->|"altas y estadísticas"| M
+  M -->|"oferta de atención"| S["Tres sedes en Bogotá"]
+  S --> G["Medicina general"]
+  S --> O["Odontología"]
+  EPS["EPS ficticia SaludCol"] -.->|"relación del escenario"| P

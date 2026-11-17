@@ -1,0 +1,21 @@
+flowchart TB
+  U["Navegador: Astro y React"] --> CF["Cloudflare: ruta MediPoli"]
+  M["Cliente MCP"] --> CF
+  U -->|"OAuth con PKCE"| C["Cognito"]
+  M -->|"OAuth con PKCE"| C
+  subgraph AWS["AWS MediPoli"]
+    EDGE["CloudFront"]
+    S3["S3 privado: web y videos"]
+    API["API Gateway HTTP"]
+    L["Lambda: agenda y MCP"]
+    D["DynamoDB: agenda"]
+    E["DynamoDB Streams"]
+    W["Lambda: auditoría"]
+    A["DynamoDB: auditoría"]
+    CW["CloudWatch"]
+    EDGE -->|"archivos"| S3
+    EDGE -->|"API y MCP"| API --> L --> D
+    D --> E --> W --> A
+    L & W -.-> CW
+  end
+  CF --> EDGE

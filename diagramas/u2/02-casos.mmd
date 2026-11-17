@@ -1,0 +1,9 @@
+flowchart LR
+  P[Paciente] --> B["Consultar disponibilidad"]
+  P --> R["Reservar franja / MP-04"]
+  P --> C["Mis citas, cancelar o reprogramar"]
+  F[Profesional] --> Q["Consultar agenda propia"]
+  A[Administrador] --> T["Altas ficticias y conteos"]
+  B & R & C & Q & T --> I["Autenticación y autorización / MP-02"]
+  R --> V["Una cita futura por servicio"]
+  R --> S["Un cupo por profesional y horario"]

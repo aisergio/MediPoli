@@ -1,0 +1,27 @@
+erDiagram
+  SEDE ||--o{ PROFESIONAL : emplea
+  PROFESIONAL ||--o{ FRANJA : atiende
+  PACIENTE ||--o{ CITA : reserva
+  FRANJA ||--o{ CITA : tiene_historial
+  CITA ||--o{ EVENTO : genera
+  PACIENTE ||--o{ CUPO_SERVICIO : tiene
+  CITA ||--o| CUPO_SERVICIO : ocupa
+  FRANJA {
+    string id PK
+    string inicioUTC
+    string estado
+  }
+  CITA {
+    string id PK
+    string estado
+    number revision
+  }
+  CUPO_SERVICIO {
+    string paciente_servicio PK
+    number inicioEpoch
+  }
+  EVENTO {
+    string eventoId PK
+    string citaId
+    number revision
+  }

@@ -1,0 +1,5 @@
+account_id         = "000000000000"
+region             = "us-east-2"
+environment        = "dev"
+enable_application = false
+# TF_VAR_budget_email se proporciona en la sesión como valor privado.
