@@ -1,8 +1,9 @@
-flowchart LR
-  P["Paciente afiliado simulado"] -->|"consulta y gestiona citas"| M["IPS ficticia MediPoli"]
-  F["Profesional empleado"] -->|"consulta su agenda"| M
-  A["Administrador de la IPS"] -->|"altas y estadísticas"| M
-  M -->|"oferta de atención"| S["Tres sedes en Bogotá"]
-  S --> G["Medicina general"]
-  S --> O["Odontología"]
-  EPS["EPS ficticia SaludCol"] -.->|"relación del escenario"| P
+flowchart TB
+  P["Paciente<br/>Consulta y gestiona citas"]
+  F["Profesional empleado<br/>Consulta su agenda"]
+  A["Administrador<br/>Altas y conteos"]
+  M["IPS ficticia MediPoli<br/>Tres sedes en Bogotá"]
+  EPS["EPS ficticia SaludCol"] -.->|"Afiliación simulada"| P
+  P & F & A --> M
+  M --> G["Medicina general"]
+  M --> O["Odontología"]

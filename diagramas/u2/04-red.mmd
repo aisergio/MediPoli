@@ -1,23 +1,12 @@
 flowchart TB
-  T["Estación de pruebas /32"] -->|"HTTP 80: datos ficticios"| I["Internet Gateway"]
-  subgraph VPC["VPC dev | 10.30.0.0/16"]
-    subgraph PUBLIC["Subredes públicas"]
-      P1["Zona A / 10.30.0.0/24"]
-      P2["Zona B / 10.30.1.0/24"]
-      LB["ALB de laboratorio"]
-      P1 & P2 --- LB
-    end
-    subgraph PRIVATE["Subredes privadas"]
-      F1["Zona A / 10.30.16.0/24"]
-      F2["Zona B / 10.30.17.0/24"]
-      L["Lambda con interfaces privadas"]
-      E["Endpoint gateway DynamoDB"]
-      ES["Endpoint gateway S3"]
-      F1 & F2 --- L
-      L --> E
-    end
-    I --> LB
-    LB -->|"invocación autorizada por ARN"| L
+  T["Estación autorizada /32"] -->|"HTTP de prueba"| I["Internet Gateway"]
+  subgraph VPC["VPC dev 10.30.0.0/16"]
+    LB["Subredes públicas · Zonas A y B<br/>10.30.0.0/24 y 10.30.1.0/24<br/>ALB de laboratorio"]
+    L["Subredes privadas · Zonas A y B<br/>10.30.16.0/24 y 10.30.17.0/24<br/>Interfaces de Lambda"]
+    LB -->|"Invocación autorizada"| L
+    L --> E["Gateway DynamoDB"]
+    L -.-> ES["Gateway S3 preparado"]
   end
-  E --> D["DynamoDB LAB#STATUS"]
-  ES --- S["S3: ruta privada preparada"]
+  I --> LB
+  E --> D["DynamoDB<br/>Lectura LAB#STATUS"]
+  ES -.-> S["S3"]

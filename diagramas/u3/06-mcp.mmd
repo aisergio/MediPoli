@@ -1,0 +1,12 @@
+sequenceDiagram
+  participant C as Cliente MCP
+  participant M as MediPoli MCP
+  participant I as Cognito
+  participant A as Servicio de agenda
+  C->>M: Solicitud inicial
+  M-->>C: 401 y metadatos del recurso
+  C->>I: OAuth con PKCE
+  I-->>C: Token con audiencia y permisos
+  C->>M: tools/call con token
+  M->>A: Identidad del token y acción autorizada
+  A-->>C: Disponibilidad, citas propias o reserva confirmada

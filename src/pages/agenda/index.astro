@@ -1,0 +1,14 @@
+---
+import Portal from "../../layouts/Portal.astro";
+import Agenda from "../../ui/Agenda.jsx";
+---
+<Portal title="Mi agenda | MediPoli">
+  <section class="frame content-section agenda-page">
+    <p class="eyebrow">MediPoli · Portal de citas</p>
+    <h1>Mi agenda</h1>
+    <Agenda client:load base={import.meta.env.BASE_URL}
+      cognitoDomain={import.meta.env.PUBLIC_COGNITO_DOMAIN ?? ""}
+      clientId={import.meta.env.PUBLIC_COGNITO_CLIENT_ID ?? ""}
+      webScope={import.meta.env.PUBLIC_WEB_SCOPE ?? "https://aisergio.dev/MediPoli/api/agenda"} />
+  </section>
+</Portal>

@@ -1,0 +1,11 @@
+stateDiagram-v2
+  [*] --> Confirmada: Reserva válida
+  Confirmada --> Confirmada: Reprogramar cita y aumentar revisión
+  Confirmada --> Cancelada: Cancelar cita propia futura
+  Confirmada --> Histórica: La hora de inicio transcurre
+  Cancelada --> [*]
+  Histórica --> [*]
+  note right of Histórica
+    Estado temporal derivado.
+    No exige escritura adicional.
+  end note

@@ -1,0 +1,8 @@
+flowchart TB
+  Q["Muestra de consultas"] --> A["SLI: proporción HTTP 200"]
+  Q --> P["p95 y p99 con tamaño de muestra"]
+  A --> S["SLO de consulta en la ventana"]
+  P --> S
+  E["Trazas de eventos"] --> R["Atraso y fallos"]
+  S & R --> D["Dashboard y alarmas"]
+  D --> C["Consultar causa y decidir corrección"]

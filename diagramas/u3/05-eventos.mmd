@@ -1,0 +1,9 @@
+flowchart TB
+  A["Cita confirmada o modificada"] --> B["Streams · Solo APPOINTMENT"]
+  B --> C["Consumidor · Cita y revisión"]
+  C --> D{"Escritura condicional"}
+  D -->|"Nueva clave"| P["Auditoría guardada"]
+  D -->|"Clave existente"| K["Evento duplicado reconocido"]
+  C -->|"Fallo"| R["Reintentos y respuesta parcial"]
+  R -->|"Agotados"| S["S3 · Lote original"]
+  S -->|"Reproceso verificado"| C

@@ -1,0 +1,7 @@
+flowchart LR
+  A["CloudFront"] --> G["API Gateway y Lambda administrados"]
+  G --> D["DynamoDB regional<br/>Datos replicados entre zonas"]
+  D --> S["Streams"]
+  S --> A1["Consumidor privado<br/>Subred zona A"]
+  S --> A2["Consumidor privado<br/>Subred zona B"]
+  A1 & A2 --> E["Endpoint DynamoDB"]

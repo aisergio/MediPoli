@@ -1,0 +1,14 @@
+sequenceDiagram
+  actor P as Paciente
+  participant A as Agenda
+  participant D as DynamoDB
+  P->>A: Solicita nueva franja del mismo servicio
+  A->>D: Lee cita propia y las dos franjas
+  A->>D: Transacción con revisión esperada
+  alt Nueva franja disponible
+    D-->>A: Actualiza cita y cupo, libera franja anterior
+    A-->>P: Confirma el cambio
+  else Conflicto
+    D-->>A: Mantiene la transacción sin aplicar
+    A-->>P: Conserva la cita original
+  end

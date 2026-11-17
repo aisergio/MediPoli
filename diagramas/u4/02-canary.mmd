@@ -1,0 +1,8 @@
+flowchart TB
+  A["Versión estable"] --> B["Publicar y verificar candidata"]
+  B --> C["Alias live · 90 % estable · 10 % candidata"]
+  C --> D["5 minutos con consultas de prueba"]
+  D --> E{"100 muestras candidatas<br/>Errores ≤ 1 % · p95 ≤ 2 s"}
+  E -->|"Pasa"| P["Promover candidata al 100 %"]
+  E -->|"Falla o muestra insuficiente"| R["Restaurar versión estable"]
+  P & R --> X["Verificar salud y guardar métricas"]

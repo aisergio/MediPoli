@@ -1,0 +1,15 @@
+sequenceDiagram
+  actor P as Paciente
+  participant W as Web o MCP
+  participant L as Lambda Agenda
+  participant D as DynamoDB
+  P->>W: Elige y confirma una franja
+  W->>L: Token, franja y clave
+  L->>D: Transacción de franja, cupo, cita y solicitud
+  alt Condiciones vigentes
+    D-->>L: Escrituras confirmadas
+    L-->>W: Cita confirmada
+  else Franja o cupo ocupado
+    D-->>L: Se cancela la transacción
+    L-->>W: Conflicto 409
+  end

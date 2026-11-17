@@ -6,13 +6,18 @@ param(
   [string]$Perfil = 'medipoli',
   [string]$Terraform = 'terraform',
   [switch]$LimiteConfirmado,
+  [switch]$PlanGratuito,
   [switch]$SoloRetirar
 )
 
 $ErrorActionPreference = 'Stop'
-if (!$LimiteConfirmado -and !$SoloRetirar) { throw 'Verifica el límite nativo de USD 50 en AWS Settings.' }
+if (!$LimiteConfirmado -and !$PlanGratuito -and !$SoloRetirar) { throw 'Verifica el límite nativo de USD 50 o confirma el plan Free del proyecto.' }
 $actual = & aws sts get-caller-identity --profile $Perfil --region $Region --query Account --output text --no-cli-pager
 if ($LASTEXITCODE -ne 0 -or $actual.Trim() -ne $Cuenta) { throw 'La cuenta de AWS no corresponde a MediPoli.' }
+if ($PlanGratuito) {
+  $tipo = & aws freetier get-account-plan-state --profile $Perfil --region us-east-1 --query accountPlanType --output text --no-cli-pager
+  if ($LASTEXITCODE -ne 0 -or $tipo.Trim() -ne 'FREE') { throw 'El plan Free no está activo.' }
+}
 $root = Split-Path $PSScriptRoot -Parent
 $work = Join-Path $root '.work'
 $base = Join-Path $root 'infra/ambiente'

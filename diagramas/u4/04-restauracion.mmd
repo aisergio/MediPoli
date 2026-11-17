@@ -1,0 +1,6 @@
+flowchart TB
+  D["Tabla dev con PITR"] --> C["Identificar punto recuperable"]
+  C --> T["Crear tabla restaurada temporal"]
+  T --> V["Comprobar ACTIVE y lectura"]
+  V --> M["Registrar duración y brecha"]
+  M --> R["Retirar solo la tabla temporal"]
