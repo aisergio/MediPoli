@@ -1,0 +1,7 @@
+flowchart LR
+  I["Cambios en código"] --> D["Escaneo de dependencias"]
+  I --> T["Verificación de políticas"]
+  D & T --> E["Release aprobado"]
+  E --> O["Token OIDC efímero"]
+  O --> A["Rol acotado a MediPoli"]
+  A --> L["Logs y métricas saneadas"]

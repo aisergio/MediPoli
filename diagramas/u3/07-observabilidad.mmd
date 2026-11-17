@@ -1,0 +1,7 @@
+flowchart TB
+  R["Solicitud con ID"] --> API["Log API Gateway"]
+  R --> L["Log Lambda con duración y versión"]
+  L --> D["Cita con ID de correlación"]
+  D --> E["Auditoría con la misma correlación"]
+  API & L & E --> C["CloudWatch"]
+  C --> POL["p95, p99, errores y atraso de Streams"]

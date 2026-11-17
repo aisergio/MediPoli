@@ -1,0 +1,8 @@
+flowchart TB
+  PR["Pull request"] --> V["Pruebas, auditoría y Terraform"]
+  V --> R["Revisión y main"]
+  R --> B["Build con lock · ZIP y sitio"]
+  B --> O["Entorno designado · OIDC temporal"]
+  O --> P["Despliegue de candidato"]
+  P --> C["Verificación y tráfico gradual"]
+  C --> E["Promover o revertir · Evidencia"]

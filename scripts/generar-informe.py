@@ -150,7 +150,8 @@ def add_table(document, rows):
 def add_figure(document, image_path, description):
     with Image.open(image_path) as picture:
         width, height = picture.size
-    display_width = min(6.8, (width / height) * 3.65)
+    maximum_height = 3.55 if "02-casos" in image_path.stem else 4.45
+    display_width = min(6.8, (width / height) * maximum_height)
     paragraph = document.add_paragraph()
     paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
     paragraph.paragraph_format.keep_with_next = True

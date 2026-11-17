@@ -18,6 +18,6 @@ terraform -chdir=infra/ambiente init -backend=false
 terraform -chdir=infra/ambiente validate
 ```
 
-Confirme el proyecto y su límite de gasto nativo en **AWS Settings** antes de aplicar. El presupuesto de alertas se puede crear mediante Terraform. Consulte el [procedimiento U2](docs/u2-verificacion.md) y mantenga los datos de sesión y planes fuera del repositorio.
+Confirme el proyecto y su plan en **AWS Settings** antes de aplicar. U2 admite la base dev en Free con alertas por correo en el presupuesto del proyecto. La pausa integral a USD 50 es un control de Paid. Consulte el [procedimiento U2](docs/u2-verificacion.md) y mantenga los datos de sesión y planes fuera del repositorio.
 
 Las fuentes Mermaid se pueden importar en Mermaid.ai. Se identifican por unidad y número de figura. Las capturas, resultados y gráficas que se presenten como evidencia de ejecución deben proceder del entorno de verificación correspondiente.

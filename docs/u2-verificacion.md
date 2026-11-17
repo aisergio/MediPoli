@@ -4,7 +4,7 @@
 
 Abra [AWS Settings](https://settings.aws.com), localice MediPoli y compruebe nombre, región, ID y funciones avanzadas desactivadas. Tome una captura donde se vean el proyecto y el estado, ocultando el ID completo y la información de facturación ajena al trabajo. Para el límite nativo de USD 50 se requiere el plan Paid; el cambio de plan y la activación de funciones avanzadas son controles distintos.
 
-En Facturación, configure o compruebe el límite nativo del **proyecto MediPoli** por USD 50. La pausa de recursos corresponde a ese límite. Budget se configura por separado, con coste real antes de créditos e impuestos y avisos al 60 % y al 80 %. Confirme que la vista de facturación corresponde al proyecto. No genere consumo para precipitar una alerta.
+U2 conserva **Free** en MediPoli. En Presupuestos, compruebe el presupuesto mensual de USD 50 y los avisos por correo al 60 %, 80 % y 100 % del coste observado. El presupuesto se deja sin acción IAM. La pausa integral a USD 50 se configura mediante un límite nativo en AWS Settings bajo Paid.
 
 ## 2. Validar antes de usar credenciales
 
@@ -22,10 +22,10 @@ Conserve versión de Terraform, entorno, fecha UTC, commit y resultado. Estas va
 
 ## 3. Aprovisionar y comprobar idempotencia
 
-Use un perfil temporal del proyecto MediPoli. Proporcione `TF_VAR_budget_email` en la sesión, de forma privada. El siguiente ejemplo presupone que se comprobaron el ID y el límite en AWS Settings.
+Use un perfil temporal del proyecto MediPoli. Este ejemplo conserva el presupuesto existente en la consola y verifica el plan Free antes de aplicar.
 
 ```powershell
-.scripts\base-aws.ps1 -Cuenta $idMediPoli -Region $regionMediPoli -Aplicar -LimiteConfirmado
+.\scripts\base-aws.ps1 -Cuenta $idMediPoli -Region $regionMediPoli -Aplicar -PlanGratuito -PresupuestoExistente
 ```
 
 El script verifica la identidad AWS, crea el bucket de estado protegido, aplica la base `dev` y genera un segundo plan. El resultado esperado del segundo plan es código 0. Si devuelve 2, lea qué cambió y corríjalo antes de repetir. Si devuelve 1, compruebe el error de acceso o de configuración. La evidencia resumida se guarda en `.work/dev-segundo-plan.json`; el plan completo y el estado se conservan de forma privada.
@@ -35,7 +35,7 @@ El script verifica la identidad AWS, crea el bucket de estado protegido, aplica 
 En la estación de pruebas, identifique su IPv4 pública y prepare la forma `IP/32`. Antes de ejecutar, confirme que es una estación autorizada y con salida a AWS. El balanceador permite solo dicha dirección y usa datos sintéticos.
 
 ```powershell
-.scripts\prueba-red.ps1 -Cuenta $idMediPoli -Region $regionMediPoli -Cidr $cidrPrueba -LimiteConfirmado
+.\scripts\prueba-red.ps1 -Cuenta $idMediPoli -Region $regionMediPoli -Cidr $cidrPrueba -PlanGratuito
 ```
 
 El resultado esperado es HTTP 200 y `ok: true` con `prueba: ALB-Lambda-DynamoDB`. Busque el mismo ID de solicitud en CloudWatch. El script retira los recursos del laboratorio al terminar, también si falla la consulta. Si el proceso se interrumpe, ejecute enseguida la variante `-SoloRetirar` con los mismos parámetros y confirme que el balanceador se eliminó. El estado de la VPC y de la tabla base queda separado del laboratorio.

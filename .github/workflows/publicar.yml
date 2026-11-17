@@ -1,0 +1,77 @@
+name: Publicar MediPoli
+on:
+  push:
+    branches: [main]
+    paths: ['src/**', 'scripts/**', 'package.json', 'pnpm-lock.yaml', '.github/workflows/publicar.yml']
+  workflow_dispatch:
+    inputs:
+      ambiente:
+        type: choice
+        options: [dev, prod]
+        default: dev
+      ensayar_reversion:
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: medipoli-release-${{ inputs.ambiente || 'dev' }}
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || vars.DEPLOY_DEV_ENABLED == 'true')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    environment: ${{ inputs.ambiente || 'dev' }}
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      MEDIPOLI_ENV: ${{ inputs.ambiente || 'dev' }}
+      MEDIPOLI_TEST_ROLLBACK: ${{ inputs.ensayar_reversion || false }}
+      RELEASE_MODE: ${{ vars.RELEASE_MODE || 'canary' }}
+      AWS_EXPECTED_ACCOUNT: ${{ vars.AWS_EXPECTED_ACCOUNT }}
+      MEDIPOLI_SITE_BUCKET: ${{ vars.MEDIPOLI_SITE_BUCKET }}
+      MEDIPOLI_CF_ID: ${{ vars.MEDIPOLI_CF_ID }}
+      MEDIPOLI_API_ORIGIN: ${{ vars.MEDIPOLI_API_ORIGIN }}
+      PUBLIC_COGNITO_DOMAIN: ${{ vars.PUBLIC_COGNITO_DOMAIN }}
+      PUBLIC_COGNITO_CLIENT_ID: ${{ vars.PUBLIC_COGNITO_CLIENT_ID }}
+      PUBLIC_WEB_SCOPE: ${{ vars.PUBLIC_WEB_SCOPE }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Construir y verificar
+        run: |
+          npm install --global pnpm@11.25.0
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm run check:policy
+          pnpm audit --prod --audit-level high
+          pnpm test
+          pnpm run package:lambda
+          pnpm run build
+      - name: Obtener sesión AWS temporal
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a
+        with:
+          role-to-assume: ${{ vars.AWS_RELEASE_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          allowed-account-ids: ${{ vars.AWS_EXPECTED_ACCOUNT }}
+          role-session-name: medipoli-${{ github.run_id }}
+      - name: Publicar y evaluar
+        run: node scripts/publicar.mjs
+        env:
+          SMOKE_ACCESS_TOKEN: ${{ secrets.SMOKE_ACCESS_TOKEN }}
+      - name: Conservar métricas saneadas
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: medipoli-release-${{ github.run_id }}
+          path: .work/release/resultado.json
+          retention-days: 7
+          if-no-files-found: ignore

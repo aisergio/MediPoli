@@ -1,0 +1,33 @@
+{
+  "name": "medipoli",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.25.0",
+  "engines": { "node": ">=22.23.4" },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "test": "node --test pruebas/*.test.mjs",
+    "package:lambda": "node scripts/empaquetar.mjs",
+    "seed": "node scripts/cargar-datos.mjs",
+    "check:policy": "node scripts/verificar-politicas.mjs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.900.0",
+    "@aws-sdk/client-dynamodb": "^3.900.0",
+    "@aws-sdk/lib-dynamodb": "^3.900.0",
+    "@aws-sdk/util-dynamodb": "^3.900.0",
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "aws-jwt-verify": "5.2.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@astrojs/react": "7.1.9",
+    "astro": "7.4.12",
+    "esbuild": "^0.28.1",
+    "fflate": "0.8.2"
+  }
+}
