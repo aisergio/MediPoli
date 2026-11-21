@@ -25,6 +25,7 @@ test("P-09 CA-01/02/05 · tres revisiones fuera de orden y repetidas conservan e
   t.mock.method(console, "log", message => messages.push(message));
   t.mock.method(console, "warn", message => messages.push(message));
   const store = memoryStore();
+  const writes = t.mock.method(store, "create");
   const consume = createAuditConsumer(store);
   const types = ["CitaReservada", "CitaReprogramada", "CitaCancelada"];
   const changes = types.map((type, i) => change("demo-a", i + 1, type, String(i + 1)));
@@ -45,6 +46,8 @@ test("P-09 CA-01/02/05 · tres revisiones fuera de orden y repetidas conservan e
   }
   assert.equal(await store.get("EVENT#ignorada#1"), undefined);
   assert.equal(await store.get("EVENT#desconocida#1"), undefined);
+  const insertions = await Promise.all(writes.mock.calls.map(call => call.result));
+  assert.equal(insertions.filter(Boolean).length, 3);
   assert.ok(messages.length > 0);
   assert.doesNotMatch(messages.join("\n"), /PACIENTE-PRIVADO|NOTA-PRIVADA|SECRETO-DE-PRUEBA/);
 });
@@ -104,8 +107,9 @@ function awsDouble(envelope, invoke, expectedKey = key) {
   };
 }
 
-test("P-09 CA-04 · el objeto oficial sin extensión se reprocesa dos veces con el mismo resultado", async () => {
+test("P-09 CA-04 · el objeto oficial sin extensión se reprocesa dos veces con el mismo resultado", async t => {
   const store = memoryStore();
+  const writes = t.mock.method(store, "create");
   const consume = createAuditConsumer(store);
   const deps = awsDouble({ requestContext: { condition: "RetryAttemptsExhausted" }, payload: JSON.stringify(batch) }, async event => {
     assert.deepEqual(event, batch);
@@ -119,6 +123,7 @@ test("P-09 CA-04 · el objeto oficial sin extensión se reprocesa dos veces con 
     assert.ok(Number.isFinite(Date.parse(output.utc)));
   }
   assert.deepEqual(deps.operations, ["sts", "s3api", "lambda", "sts", "s3api", "lambda"]);
+  assert.deepEqual(await Promise.all(writes.mock.calls.map(call => call.result)), [true, false]);
   assert.equal((await store.get("EVENT#recuperar#1")).requestId, "solicitud-41");
 });
 
