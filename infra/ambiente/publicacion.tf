@@ -4,15 +4,15 @@ resource "aws_s3_bucket" "site" {
 }
 
 resource "aws_s3_bucket" "failure" {
-  count  = local.app
+  count  = local.audit_active ? 1 : 0
   bucket = local.failure_bucket
 }
 
 resource "aws_s3_bucket_public_access_block" "private" {
-  for_each = var.enable_application ? {
-    site    = aws_s3_bucket.site[0].id
-    failure = aws_s3_bucket.failure[0].id
-  } : {}
+  for_each = merge(
+    var.enable_application ? { site = aws_s3_bucket.site[0].id } : {},
+    local.audit_active ? { failure = aws_s3_bucket.failure[0].id } : {}
+  )
   bucket                  = each.value
   block_public_acls       = true
   block_public_policy     = true
@@ -27,7 +27,7 @@ resource "aws_s3_bucket_versioning" "site" {
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "failure" {
-  count  = local.app
+  count  = local.audit_active ? 1 : 0
   bucket = aws_s3_bucket.failure[0].id
   rule {
     id     = "EventosFallidosTreintaDias"

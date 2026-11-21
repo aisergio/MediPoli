@@ -1,5 +1,6 @@
 locals {
-  prefix = "medipoli-${var.environment}"
+  prefix       = "medipoli-${var.environment}"
+  audit_active = var.enable_application || var.enable_audit
 }
 
 module "network" {
@@ -14,7 +15,7 @@ module "data" {
   source = "../modulos/datos"
 
   name                = local.prefix
-  enable_stream       = var.enable_application
+  enable_stream       = local.audit_active
   deletion_protection = var.environment == "prod"
 }
 

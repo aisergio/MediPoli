@@ -9,6 +9,8 @@ node --test pruebas/*.test.mjs
 
 ## Ensayo en AWS dev
 
+La base de U2 puede ampliarse con `enable_audit=true` y `enable_application=false` en el estado `dev/base.tfstate`. Empaquetar Lambda con `node scripts/empaquetar.mjs`, ejecutar el plan de Terraform en `infra/ambiente` y revisar que sus cambios correspondan a Streams, el consumidor, su rol, el grupo de logs y el bucket privado. Mientras el ensayo sea la única parte desplegada de U3, conservar `enable_audit=true` al planear dev. `enable_application=true` habilita la auditoría cuando se incorpore la aplicación completa. [Variables de Terraform](../../infra/ambiente/variables.tf)
+
 ### Ejecución automatizada de DynamoDB Streams a S3
 
 Ejecutar con el perfil `medipoli` cuando la función, el mapeo y el bucket de fallos estén desplegados. El primer comando comprueba la cuenta y lee la configuración. El segundo escribe dos citas sintéticas directamente en la tabla de agenda. Una recorre las tres revisiones. En la otra se provoca un fallo de escritura en una sola clave y se espera el objeto que publica el mapeo. El script retira la política, reprocesa dos veces ese objeto y verifica las filas de auditoría.
