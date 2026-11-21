@@ -20,5 +20,6 @@ Unidad 3 · Corte del 20 de noviembre de 2026. Cada casilla se cierra con la com
 | `39ac04a` | `node scripts/verificar-politicas.mjs` | Se comprobaron los controles en doce archivos Terraform. |
 | `39ac04a` | `pnpm run build` y `pnpm run package:lambda` | Astro generó dos páginas y se produjeron los paquetes de API y auditoría. |
 | `39ac04a` | Comprobación de requisitos de Spec Kit con `-RequireSpec -RequireTasks` | La herramienta localizó la especificación, el plan y las tareas de la iniciativa 001. |
+| `e8e1b17` | Prueba explícita del número de escrituras y repetición de la suite | Se observaron tres inserciones para tres revisiones y una sola inserción al reprocesar dos veces un lote de un cambio. En GitHub Actions pasaron Agenda y Terraform. [Ejecución verificada](https://github.com/aisergio/MediPoli/actions/runs/44856716255) |
 
 La [suite P-09](../../pruebas/auditoria.test.mjs) incluye el caso de compatibilidad con archivos anteriores. El [caso de integración con la reserva](../../pruebas/integracion.test.mjs) usa el movimiento creado por la agenda. La evidencia del mapeo administrado, sus reintentos y la entrega a S3 se obtiene con T07.

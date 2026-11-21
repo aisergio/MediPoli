@@ -24,10 +24,27 @@ node --test pruebas/*.test.mjs
    ```
 
 2. Con un paciente de demostración, reservar, reprogramar y cancelar la misma cita. Conservar el identificador sintético y las tres solicitudes. Consultar las claves `EVENT#<cita>#1`, `#2` y `#3` en `medipoli-dev-auditoria` con lectura consistente. Comprobar tipo, sede, servicio, revisión y correlación. Se esperan tres filas.
+
+   ```powershell
+   $cita = Read-Host 'Identificador de la cita sintética'
+   $movimientos = @('CitaReservada', 'CitaReprogramada', 'CitaCancelada')
+   foreach ($revision in 1..3) {
+       $claveFila = "pk={S=EVENT#$cita#$revision}"
+       $salida = aws dynamodb get-item --table-name medipoli-dev-auditoria --consistent-read --key $claveFila --query 'Item.{revision:revision.N,movimiento:type.S,solicitud:requestId.S,fecha:changedAt.S,sede:clinic.S,servicio:service.S}' --output json
+       if ($LASTEXITCODE -ne 0) { throw 'Falló la lectura de la tabla de auditoría.' }
+       $fila = $salida | ConvertFrom-Json
+       if (!$fila -or [int]$fila.revision -ne $revision -or $fila.movimiento -ne $movimientos[$revision - 1] -or !$fila.solicitud) {
+           throw "La revisión $revision aún no presenta el historial esperado."
+       }
+       $fila
+   }
+   ```
+
 3. En una prueba de fallo controlado en dev, seleccionar una cita sintética exclusiva del ensayo. Una forma de aislar el fallo consiste en restringir temporalmente la escritura del consumidor **solo** para la clave de auditoría de esa cita y revisión. Conservar la regla previa, comprobar el alcance exacto y retirar la restricción al terminar, incluso si el ensayo falla. Observar los reintentos y esperar a que el mapeo escriba el objeto en su destino. Registrar que otra cita continúa auditándose. Si no se obtiene un objeto emitido por el mapeo, el ensayo de entrega a S3 queda pendiente.
 4. Después de corregir la causa, copiar la clave exacta del objeto desde el bucket privado del ambiente. Asignarla a `$clave` en PowerShell y ejecutar el comando siguiente dos veces. La salida de cada ejecución debe indicar `ok` y el número de registros. Una salida con error deja el lote pendiente de investigación. El comando conserva el objeto en S3.
 
    ```powershell
+   $clave = Read-Host 'Clave del objeto emitido para el ensayo, comenzando por aws/lambda/'
    node scripts/reprocesar-evento.mjs "$clave"
    if ($LASTEXITCODE -ne 0) { throw 'El lote todavía tiene errores.' }
    ```
