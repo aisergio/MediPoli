@@ -9,6 +9,28 @@ node --test pruebas/*.test.mjs
 
 ## Ensayo en AWS dev
 
+### Ejecución automatizada de DynamoDB Streams a S3
+
+Ejecutar con el perfil `medipoli` cuando la función, el mapeo y el bucket de fallos estén desplegados. El primer comando comprueba la cuenta y lee la configuración. El segundo escribe dos citas sintéticas directamente en la tabla de agenda. Una recorre las tres revisiones. En la otra se provoca un fallo de escritura en una sola clave y se espera el objeto que publica el mapeo. El script retira la política, reprocesa dos veces ese objeto y verifica las filas de auditoría.
+
+```powershell
+$config = Get-Content -Raw .work/laboratorio.auto.tfvars.json | ConvertFrom-Json
+$env:AWS_PROFILE = 'medipoli'
+$env:AWS_REGION = $config.region
+$env:AWS_EXPECTED_ACCOUNT = [string]$config.account_id
+$env:MEDIPOLI_ENV = 'dev'
+node scripts/ensayar-auditoria-dev.mjs --comprobar
+if ($LASTEXITCODE -ne 0) { throw 'Revisar la sesión y la infraestructura de dev.' }
+node scripts/ensayar-auditoria-dev.mjs --ejecutar
+if ($LASTEXITCODE -ne 0) { throw 'Revisar el estado y la limpieza en la evidencia privada.' }
+```
+
+El perfil que ejecuta la prueba consulta la función, el mapeo y la tabla de auditoría. También necesita acceso al bucket privado, a CloudWatch Logs, a los elementos de prueba de la agenda y a una política en línea del rol de auditoría de `dev`. El script comprueba en el simulador IAM que la denegación afecta solo a la clave esperada. La regla tiene caducidad de diez minutos y el script la retira junto con las dos filas de origen al finalizar. Las filas de auditoría y el objeto en S3 quedan disponibles para revisar el resultado.
+
+La ejecución deja `resultado.json` y el objeto de fallo en `evidencia/privada/mp09-…/`. `estado: verificado` requiere el historial de control, el objeto de S3, el fallo repetido en CloudWatch y ambos reprocesos. Confirmar que `limpiezaPendiente` esté vacío. El manifiesto registra el commit de la prueba y el hash de código de la función desplegada.
+
+### Evidencia paso a paso
+
 1. Seleccionar el perfil `medipoli` y la región del proyecto. Tomar el ID esperado de la configuración privada del proyecto. Compararlo con la identidad de STS. Consultar el estado de la función y del mapeo. Para el ensayo se necesitan una función activa, un mapeo habilitado y un destino S3 para los fallos.
 
    ```powershell

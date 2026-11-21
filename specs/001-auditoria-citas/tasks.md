@@ -23,3 +23,11 @@ Unidad 3 · Corte del 20 de noviembre de 2026. Cada casilla se cierra con la com
 | `e8e1b17` | Prueba explícita del número de escrituras y repetición de la suite | Se observaron tres inserciones para tres revisiones y una sola inserción al reprocesar dos veces un lote de un cambio. En GitHub Actions pasaron Agenda y Terraform. [Ejecución verificada](https://github.com/aisergio/MediPoli/actions/runs/44856716255) |
 
 La [suite P-09](../../pruebas/auditoria.test.mjs) incluye el caso de compatibilidad con archivos anteriores. El [caso de integración con la reserva](../../pruebas/integracion.test.mjs) usa el movimiento creado por la agenda. La evidencia del mapeo administrado, sus reintentos y la entrega a S3 se obtiene con T07.
+
+## Preparación de T07 el 21 de noviembre de 2026
+
+El [ensayo automatizado](../../scripts/ensayar-auditoria-dev.mjs) comprueba los recursos de dev, genera dos citas sintéticas, busca el lote que emite el mapeo y repite su recuperación. El resultado privado incluye el hash de Lambda, las filas verificadas y la limpieza.
+
+El comando completo se ejecutó con AWS CLI contra servicios simulados por HTTP local. La cita de control produjo tres filas. El otro movimiento produjo tres intentos fallidos simulados y un archivo. Dos reprocesos guardaron una sola fila de recuperación. El ensayo retiró la política y las dos filas de origen del doble de prueba. Pasaron también las 21 pruebas del repositorio.
+
+El paso de acceso a AWS quedó pendiente porque STS rechazó la sesión caducada del perfil `medipoli` y venció el intento de autorización en el navegador. T07 se cierra con un objeto emitido por el mapeo administrado y su recuperación observada en dev. [Comandos y evidencia esperada](quickstart.md)

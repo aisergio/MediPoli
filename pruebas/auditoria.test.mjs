@@ -92,7 +92,8 @@ function awsDouble(envelope, invoke, expectedKey = key) {
       const [service, operation] = args;
       operations.push(service);
       if (service === "s3api") {
-        assert.deepEqual(args.slice(0, -1), ["s3api", "get-object", "--bucket", "medipoli-dev-fallos-" + account, "--key", expectedKey]);
+        assert.deepEqual(args.slice(0, -1), ["s3api", "get-object", "--bucket", "medipoli-dev-fallos-" + account,
+          "--expected-bucket-owner", account, "--key", expectedKey]);
         await writeFile(args.at(-1), JSON.stringify(envelope));
         return {};
       }

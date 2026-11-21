@@ -39,7 +39,8 @@ export async function replayFailedBatch({ key, stage, account }, { run = aws, ch
   const input = join(directory, "invoke.json");
   const output = join(directory, "result.json");
   try {
-    await run(["s3api", "get-object", "--bucket", `medipoli-${stage}-fallos-${account}`, "--key", key, source]);
+    await run(["s3api", "get-object", "--bucket", `medipoli-${stage}-fallos-${account}`,
+      "--expected-bucket-owner", account, "--key", key, source]);
     const event = readStreamEvent(await readFile(source, "utf8"));
     await writeFile(input, JSON.stringify(event), { mode: 0o600 });
     const result = await run(["lambda", "invoke", "--function-name", `medipoli-${stage}-auditoria`, "--payload", "fileb://" + input, output]);
