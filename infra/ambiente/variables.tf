@@ -39,6 +39,16 @@ variable "enable_application" {
   default     = false
 }
 
+variable "enable_audit" {
+  description = "Activa en dev el flujo de auditoría antes de publicar la aplicación completa."
+  type        = bool
+  default     = false
+  validation {
+    condition     = !var.enable_audit || var.environment == "dev"
+    error_message = "El aprovisionamiento independiente de auditoría se limita a dev."
+  }
+}
+
 variable "site_origin" {
   description = "Origen público del portal sin barra final."
   type        = string

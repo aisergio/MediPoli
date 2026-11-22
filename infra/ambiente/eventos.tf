@@ -1,11 +1,11 @@
 resource "aws_cloudwatch_log_group" "audit" {
-  count             = local.app
+  count             = local.audit_active ? 1 : 0
   name              = "/aws/lambda/${local.audit_name}"
   retention_in_days = 7
 }
 
 resource "aws_iam_role" "audit" {
-  count = local.app
+  count = local.audit_active ? 1 : 0
   name  = "${local.audit_name}-lambda"
   assume_role_policy = jsonencode({
     Version   = "2012-10-17"
@@ -14,7 +14,7 @@ resource "aws_iam_role" "audit" {
 }
 
 resource "aws_iam_role_policy" "audit" {
-  count = local.app
+  count = local.audit_active ? 1 : 0
   name  = "StreamsAuditoriaYFallos"
   role  = aws_iam_role.audit[0].id
   policy = jsonencode({
@@ -38,7 +38,7 @@ resource "aws_iam_role_policy" "audit" {
 }
 
 resource "aws_lambda_function" "audit" {
-  count            = local.app
+  count            = local.audit_active ? 1 : 0
   function_name    = local.audit_name
   filename         = local.audit_zip
   source_code_hash = try(filebase64sha256(local.audit_zip), null)
@@ -57,7 +57,7 @@ resource "aws_lambda_function" "audit" {
 }
 
 resource "aws_lambda_event_source_mapping" "audit" {
-  count                          = local.app
+  count                          = local.audit_active ? 1 : 0
   event_source_arn               = module.data.stream_arn
   function_name                  = aws_lambda_function.audit[0].arn
   starting_position              = "TRIM_HORIZON"
@@ -75,4 +75,5 @@ resource "aws_lambda_event_source_mapping" "audit" {
   destination_config {
     on_failure { destination_arn = aws_s3_bucket.failure[0].arn }
   }
+  depends_on = [aws_s3_bucket_public_access_block.private]
 }
