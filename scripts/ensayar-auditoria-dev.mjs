@@ -44,12 +44,12 @@ console.log(JSON.stringify({ comprobacion: "Lambda, Streams y S3", ...environmen
 
 if (mode === "--ejecutar") await rehearse();
 
-async function waitFor(read, seconds, reason) {
+async function waitFor(read, seconds, reason, intervalMs = 2500) {
   const until = Date.now() + seconds * 1000;
   do {
     const data = await read();
     if (data) return data;
-    await sleep(2500);
+    await sleep(intervalMs);
   } while (Date.now() < until);
   throw new Error(reason);
 }
@@ -205,7 +205,7 @@ async function rehearse() {
           // La ejecución de Lambda puede tardar un poco más que el simulador en ver el permiso restaurado.
           if (error.message !== "Persisten registros fallidos.") throw error;
         }
-      }, 45, "El consumidor siguió reportando fallos después de restablecer el permiso.");
+      }, 240, "El consumidor siguió reportando fallos después de restablecer el permiso.", 10_000);
       assert.equal(result.records, archive.payloadRecords);
       assert.deepEqual(readAudit(failing, 1), expected);
       evidence.reprocesos.push(result);
