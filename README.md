@@ -5,7 +5,7 @@ Prototipo académico de una IPS ficticia de Bogotá. El escenario representa tre
 | Unidad | Resultado | Evidencia |
 | --- | --- | --- |
 | U2 | Arquitectura y base reproducible | [Infraestructura](infra/) · [Diagramas](diagramas/u2/) · [Verificación](docs/u2-verificacion.md) |
-| U3 | Agenda, MCP y auditoría por eventos | Código y verificaciones de la aplicación |
+| U3 | Agenda, MCP y auditoría por eventos | [Verificación en AWS dev](docs/u3-verificacion.md) · [Diagramas U3](diagramas/u3/) |
 | U4 | Despliegue progresivo, recuperación y telemetría | Flujo de release, mediciones y guías de operación |
 
 ## Desarrollo guiado por especificaciones
