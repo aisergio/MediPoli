@@ -2,8 +2,9 @@ locals {
   app            = var.enable_application ? 1 : 0
   api_name       = "${local.prefix}-api"
   audit_name     = "${local.prefix}-auditoria"
-  web_resource   = "${var.site_origin}/MediPoli/api"
-  mcp_resource   = "${var.site_origin}/MediPoli/mcp"
+  public_origin  = var.enable_application && var.environment == "dev" ? "https://${aws_cloudfront_distribution.portal[0].domain_name}" : var.site_origin
+  web_resource   = "${local.public_origin}/MediPoli/api"
+  mcp_resource   = "${local.public_origin}/MediPoli/mcp"
   web_scope      = "${local.web_resource}/agenda"
   mcp_enabled    = var.enable_application && length(var.mcp_callback_urls) > 0 ? 1 : 0
   auth_domain    = "${local.prefix}-${var.account_id}"
@@ -12,7 +13,7 @@ locals {
   site_bucket    = "${local.prefix}-web-${var.account_id}"
   failure_bucket = "${local.prefix}-fallos-${var.account_id}"
   cognito_host   = "${local.auth_domain}.auth.${var.region}.amazoncognito.com"
-  callback       = "${var.site_origin}/MediPoli/agenda/"
+  callback       = "${local.public_origin}/MediPoli/agenda/"
   role_enabled   = var.enable_application && var.github_oidc_provider_arn != null && var.github_oidc_subject != null ? 1 : 0
 }
 
