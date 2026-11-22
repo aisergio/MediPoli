@@ -100,7 +100,10 @@ async function rehearse() {
   function decision(key) {
     const context = [
       { ContextKeyName: "dynamodb:LeadingKeys", ContextKeyValues: [key], ContextKeyType: "stringList" },
-      { ContextKeyName: "aws:CurrentTime", ContextKeyValues: [new Date().toISOString()], ContextKeyType: "date" }
+      { ContextKeyName: "aws:CurrentTime", ContextKeyValues: [new Date().toISOString()], ContextKeyType: "date" },
+      { ContextKeyName: "aws:PrincipalAccount", ContextKeyValues: [account], ContextKeyType: "string" },
+      { ContextKeyName: "aws:ResourceAccount", ContextKeyValues: [account], ContextKeyType: "string" },
+      { ContextKeyName: "aws:RequestedRegion", ContextKeyValues: [region], ContextKeyType: "string" }
     ];
     return call(["iam", "simulate-principal-policy", "--policy-source-arn", roleArn, "--action-names", "dynamodb:PutItem",
       "--resource-arns", auditArn, "--context-entries", JSON.stringify(context), "--query", "EvaluationResults[0].EvalDecision"]);
