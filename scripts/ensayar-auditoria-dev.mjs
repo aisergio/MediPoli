@@ -68,10 +68,11 @@ async function rehearse() {
   };
   const policyName = "MediPoliMP09-" + run;
   const rolePolicy = ["--role-name", role, "--policy-name", policyName];
-  const expires = new Date(Date.now() + 10 * 60_000).toISOString();
+  const expires = new Date(Date.now() + 15 * 60_000).toISOString();
   const expiryTtl = Math.floor(started / 1000) + 86400;
   const originKeys = new Set();
   let policyAttempted = false;
+  let markerAttempted = false;
 
   function readAudit(id, revision) {
     const { Item } = call(["dynamodb", "get-item", "--table-name", audit, "--consistent-read",
@@ -107,6 +108,46 @@ async function rehearse() {
     ];
     return call(["iam", "simulate-principal-policy", "--policy-source-arn", roleArn, "--action-names", "dynamodb:PutItem",
       "--resource-arns", auditArn, "--context-entries", JSON.stringify(context), "--query", "EvaluationResults[0].EvalDecision"]);
+  }
+
+  function removeMarker() {
+    call(["dynamodb", "delete-item", "--table-name", audit, "--key", JSON.stringify(marshall({ pk: failedKey })),
+      "--condition-expression", "attribute_not_exists(pk) OR (demoRun = :run AND demoProbe = :probe)",
+      "--expression-attribute-values", JSON.stringify(marshall({ ":run": run, ":probe": true }))]);
+    markerAttempted = false;
+  }
+
+  async function waitForRuntimeDenial() {
+    const source = join(dir, "sonda.json");
+    const output = join(dir, "respuesta-sonda.json");
+    const sequence = "1";
+    const marker = { pk: failedKey, demoRun: run, demoProbe: true };
+    const event = { Records: [{
+      eventID: "sonda-" + run, eventSource: "aws:dynamodb",
+      dynamodb: { SequenceNumber: sequence, NewImage: marshall({
+        entity: "APPOINTMENT", id: failing, revision: 1, eventType: "CitaReservada",
+        changedAt: new Date().toISOString(), clinic: "centro", service: "odontologia", requestId: "sonda-" + run
+      }) }
+    }] };
+    await writeFile(source, JSON.stringify(event), { mode: 0o600 });
+    try {
+      // El marcador permite probar el permiso con la misma clave sin crear la fila de auditoría definitiva.
+      markerAttempted = true;
+      call(["dynamodb", "put-item", "--table-name", audit, "--item", JSON.stringify(marshall(marker)),
+        "--condition-expression", "attribute_not_exists(pk)"]);
+      await waitFor(async () => {
+        const meta = call(["lambda", "invoke", "--function-name", audit, "--payload", "fileb://" + source, output]);
+        assert(meta.StatusCode === 200 && !meta.FunctionError, "Falló la invocación de la sonda.");
+        const { batchItemFailures } = JSON.parse(await readFile(output, "utf8"));
+        if (batchItemFailures.length === 0) return false;
+        assert.deepEqual(batchItemFailures, [{ itemIdentifier: sequence }]);
+        return true;
+      }, 240, "La restricción de IAM aún no se observa desde Lambda.", 10_000);
+      removeMarker();
+      assert.equal(readAudit(failing, 1), undefined, "La clave del ensayo debe estar libre antes del evento real.");
+    } finally {
+      for (const file of [source, output]) await rm(file, { force: true });
+    }
   }
 
   async function findArchive() {
@@ -180,6 +221,9 @@ async function rehearse() {
       evidence.control.push(row);
     }
 
+    console.log("Verificando en Lambda la restricción sobre la clave de prueba.");
+    await waitForRuntimeDenial();
+    evidence.restriccionVerificadaEnLambda = true;
     console.log("Esperando el objeto de fallo publicado por el mapeo.");
     const expected = sendChange(failing, 1, "CitaReservada", "BOOKED");
     const archive = await findArchive();
@@ -221,6 +265,10 @@ async function rehearse() {
     if (policyAttempted) {
       try { removePolicy(); }
       catch { problems.push("Revisar retiro de la política temporal " + policyName + "."); }
+    }
+    if (markerAttempted) {
+      try { removeMarker(); }
+      catch { problems.push("Revisar retiro del marcador de la auditoría " + failedKey + "."); }
     }
     for (const pk of originKeys) {
       try {
