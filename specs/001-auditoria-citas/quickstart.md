@@ -33,6 +33,8 @@ La regla tiene caducidad de quince minutos. El script la retira antes de reproce
 
 La ejecución deja `resultado.json` y el objeto de fallo en `evidencia/privada/mp09-…/`. `estado: verificado` requiere el historial de control, el objeto de S3, el fallo repetido en CloudWatch y ambos reprocesos. Confirmar que `limpiezaPendiente` esté vacío. El manifiesto registra el commit de la prueba y el hash de código de la función desplegada.
 
+Si vence la espera de la sonda, el ensayo queda inconcluso y retira el marcador y la política de prueba. Si el mapeo ya archivó el lote y vence la espera de recuperación, `resultado.json` conserva `archivo.key`. Después de verificar el retiro de la política, usar esa clave en el paso 4 y comprobar el resultado del paso 5. Así se reanuda la recuperación del mismo evento.
+
 ### Evidencia paso a paso
 
 1. Seleccionar el perfil `medipoli` y la región del proyecto. Tomar el ID esperado de la configuración privada del proyecto. Compararlo con la identidad de STS. Consultar el estado de la función y del mapeo. Para el ensayo se necesitan una función activa, un mapeo habilitado y un destino S3 para los fallos.
