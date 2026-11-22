@@ -27,6 +27,8 @@ La prueba MCP utilizó un cliente técnico con autorización de código y PKCE. 
 
 La muestra autenticada de `disponibilidad` tuvo 12 respuestas correctas de 12. El p50 medido desde el cliente fue 220 ms y el p95 fue 305 ms por rango más cercano. La muestra sirve como referencia del ensayo en ese ambiente. Para separar el arranque en frío del tiempo de red, los registros REPORT de Lambda aportaron dos tiempos de inicialización de 491,52 ms y 481,91 ms dentro de la ventana consultada.
 
+Cinco pacientes ficticios iniciaron sesión antes de la prueba concurrente. El cliente realizó diez rondas de cinco consultas autenticadas de disponibilidad, todas con HTTP 200. El p50 fue 247 ms, el p95 2045 ms y el p99 2118 ms. La primera ronda osciló entre 863 y 2118 ms. Para las 45 lecturas restantes, el p95 fue 486 ms. Los percentiles corresponden al tiempo completo del cliente por rango más cercano y se calcularon por separado de los tiempos de inicialización de Lambda.
+
 Una reserva se encontró en los registros de API Gateway, Lambda de API y Lambda de auditoría mediante el mismo ID de solicitud. Se verificaron el tablero `medipoli-dev` y sus alarmas de latencia, errores 5xx y atraso de Streams. La etapa de API configura un ritmo de 8 solicitudes/s y una ráfaga de 20. Los objetivos iniciales que se deben observar son la proporción de respuestas correctas, el p95 y la demora de propagación hacia el consumidor. [Alarmas y tablero](../infra/ambiente/observabilidad.tf) · [Flujo de observación](../diagramas/u3/07-observabilidad.mmd)
 
 Los manifiestos del ensayo, las capturas y la correlación quedan bajo `evidencia/privada/`. Las pruebas controladas de autorización emplearon exclusivamente cuentas ficticias.
