@@ -50,7 +50,7 @@ variable "enable_audit" {
 }
 
 variable "site_origin" {
-  description = "Origen público del portal sin barra final."
+  description = "Origen público de producción sin barra final. El ambiente dev usa su dominio de CloudFront."
   type        = string
   default     = "https://aisergio.dev"
 }

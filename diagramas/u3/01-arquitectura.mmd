@@ -1,5 +1,5 @@
 flowchart TB
-  WEB["Astro y React"] --> CF["Cloudflare → CloudFront"]
+  WEB["Navegador · Astro y React"] --> CF["CloudFront HTTPS · dev"]
   MCP["Cliente MCP"] --> CF
   WEB & MCP --> ID["Cognito · Identidad y OAuth"]
   CF --> STATIC["S3 privado · Sitio"]
@@ -7,7 +7,8 @@ flowchart TB
   API --> L["Lambda API · Agenda y MCP"]
   L --> DB["DynamoDB · Agenda"]
   DB --> E["Streams"]
-  E --> A["Lambda en subredes privadas"]
+  E --> M["Mapeo de eventos · dos reintentos"]
+  M --> A["Lambda de auditoría · subredes privadas"]
   A --> AUD["DynamoDB · Auditoría"]
-  E -.-> FAIL["S3 · Eventos fallidos"]
+  M -.-> FAIL["S3 privado · Lotes fallidos"]
   API & L & A -.-> CW["CloudWatch"]

@@ -55,6 +55,7 @@ export default function Agenda({ base, cognitoDomain, clientId, webScope }) {
   const [confirmation, setConfirmation] = useState(null);
   const [message, setMessage] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [ready, setReady] = useState(false);
   const [roleInput, setRoleInput] = useState("paciente");
   const [report, setReport] = useState(null);
   const [newLogin, setNewLogin] = useState(null);
@@ -97,6 +98,7 @@ export default function Agenda({ base, cognitoDomain, clientId, webScope }) {
 
   useEffect(() => {
     const current = dateBogota();
+    setReady(true);
     setToday(current);
     setDate(current);
     const seat = new URLSearchParams(window.location.search).get("sede");
@@ -170,7 +172,7 @@ export default function Agenda({ base, cognitoDomain, clientId, webScope }) {
       <h2>Acceso con cuenta de demostración</h2>
       <p>Inicia sesión para consultar disponibilidad, revisar tus citas o acceder a tu agenda profesional.</p>
       {configured
-        ? <button className="primary" disabled={busy} onClick={() => run(() => signIn(cognitoDomain, clientId, webScope, redirect))}>Iniciar sesión →</button>
+        ? <button className="primary" disabled={!ready || busy} onClick={() => run(() => signIn(cognitoDomain, clientId, webScope, redirect))}>Iniciar sesión →</button>
         : <p className="notice" role="status">El acceso se habilita al conectar el portal con el entorno de MediPoli.</p>}
     </section>}
     {profile && <>

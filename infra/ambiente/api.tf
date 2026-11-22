@@ -46,11 +46,11 @@ resource "aws_lambda_function" "api" {
     variables = {
       AGENDA_TABLE        = module.data.agenda_name
       USER_POOL_ID        = aws_cognito_user_pool.portal[0].id
-      PUBLIC_ORIGIN       = var.site_origin
+      PUBLIC_ORIGIN       = local.public_origin
       OAUTH_ISSUER        = "https://${aws_cognito_user_pool.portal[0].endpoint}"
       WEB_SCOPE           = local.web_scope
       MCP_CLIENT_ID       = try(aws_cognito_user_pool_client.mcp[0].id, "")
-      MCP_ALLOWED_ORIGINS = "${var.site_origin},https://chatgpt.com,http://127.0.0.1:6274,http://localhost:6274"
+      MCP_ALLOWED_ORIGINS = "${local.public_origin},https://chatgpt.com,http://127.0.0.1:6274,http://localhost:6274"
     }
   }
   depends_on = [aws_iam_role_policy.api]
@@ -164,6 +164,7 @@ resource "aws_apigatewayv2_stage" "portal" {
 
 output "application" {
   value = var.enable_application ? {
+    site_origin       = local.public_origin
     cognito_domain    = local.cognito_host
     web_client_id     = aws_cognito_user_pool_client.web[0].id
     mcp_client_id     = try(aws_cognito_user_pool_client.mcp[0].id, null)
