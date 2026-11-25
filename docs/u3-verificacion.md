@@ -32,3 +32,11 @@ Cinco pacientes ficticios iniciaron sesión antes de la prueba concurrente. El c
 Una reserva se encontró en los registros de API Gateway, Lambda de API y Lambda de auditoría mediante el mismo ID de solicitud. Se verificaron el tablero `medipoli-dev` y sus alarmas de latencia, errores 5xx y atraso de Streams. La etapa de API configura un ritmo de 8 solicitudes/s y una ráfaga de 20. Los objetivos iniciales que se deben observar son la proporción de respuestas correctas, el p95 y la demora de propagación hacia el consumidor. [Alarmas y tablero](../infra/ambiente/observabilidad.tf) · [Flujo de observación](../diagramas/u3/07-observabilidad.mmd)
 
 Los manifiestos del ensayo, las capturas y la correlación quedan bajo `evidencia/privada/`. Las pruebas controladas de autorización emplearon exclusivamente cuentas ficticias.
+
+## Portal de demostración en el dominio público
+
+El 25 de noviembre de 2026 se asociaron `aisergio.dev/MediPoli` y `aisergio.dev/MediPoli/*` al Worker `medipoli`. El Worker reenvía estas solicitudes a CloudFront de desarrollo. La ruta sin la barra final devuelve HTTP 308. Se verificaron HTTP 200 en el portal y la API, HTTP 401 al consultar un perfil sin sesión y HTTP 200 en la ruta existente de PlanEstudio. [Portal en el dominio público](https://aisergio.dev/MediPoli/) · [Worker de Cloudflare](../cloudflare/worker.mjs)
+
+Cognito autoriza `https://aisergio.dev/MediPoli/agenda/` como dirección de regreso y de cierre de sesión. Un paciente ficticio inició sesión, consultó disponibilidad, reservó una franja, la encontró en sus citas y la canceló. Los resultados fueron HTTP 200 para perfil y disponibilidad, HTTP 201 para la reserva y HTTP 200 para la cancelación. [Configuración de Cognito](../infra/ambiente/identidad.tf)
+
+El servidor MCP funciona también en el dominio público. Sus metadatos anuncian el mismo recurso que solicita el cliente y Cognito emite un token con la audiencia de ese recurso y sus permisos `read` y `reserve`. La prueba técnica recibió HTTP 401 al usar la audiencia pública en la URL de AWS. Con la audiencia correcta, el paciente ficticio consultó disponibilidad, confirmó una reserva, la consultó desde MCP y desde la web y posteriormente la canceló. [Metadatos OAuth del recurso público](https://aisergio.dev/.well-known/oauth-protected-resource/MediPoli/mcp)

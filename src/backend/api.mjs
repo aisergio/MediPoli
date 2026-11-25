@@ -25,11 +25,8 @@ function jsonBody(event) {
   }
 }
 
-export function createApi({ store, agenda, directory, mcpVerifier, publicOrigin, issuer, webScope, allowedOrigins }) {
-  const resource = `${publicOrigin}/MediPoli/mcp`;
+export function createApi({ store, agenda, directory, mcpVerifier, publicOrigin, mcpPublicOrigin = publicOrigin, issuer, webScope, allowedOrigins }) {
   const metadata = "/.well-known/oauth-protected-resource/MediPoli/mcp";
-  const read = `${resource}/read`;
-  const write = `${resource}/reserve`;
 
   async function actorFrom(sub) {
     if (!sub) throw new HttpError(401, "Inicia sesión para continuar.");
@@ -45,6 +42,10 @@ export function createApi({ store, agenda, directory, mcpVerifier, publicOrigin,
     const method = event.requestContext?.http?.method;
     const path = event.rawPath?.replace(/\/$/, "");
     const headers = event.headers ?? {};
+    const mcpOrigin = headers["x-medipoli-mcp-origin"] === mcpPublicOrigin ? mcpPublicOrigin : publicOrigin;
+    const resource = `${mcpOrigin}/MediPoli/mcp`;
+    const read = `${resource}/read`;
+    const write = `${resource}/reserve`;
     const key = headers["idempotency-key"];
     let route = "not-found";
     async function respond() {
@@ -58,7 +59,7 @@ export function createApi({ store, agenda, directory, mcpVerifier, publicOrigin,
       }
       if (path === "/MediPoli/mcp") {
         route = "mcp";
-        if (headers.origin && !allowedOrigins.includes(headers.origin)) throw new HttpError(403, "Origen no autorizado.");
+        if (headers.origin && headers.origin !== mcpPublicOrigin && !allowedOrigins.includes(headers.origin)) throw new HttpError(403, "Origen no autorizado.");
         if (method !== "POST") return json(405, { error: "El transporte usa POST." }, { allow: "POST" });
         let claims;
         try {
@@ -69,7 +70,7 @@ export function createApi({ store, agenda, directory, mcpVerifier, publicOrigin,
           if (!audiences.includes(resource)) throw new Error("audience");
         } catch {
           return json(401, { error: "Autoriza la cuenta del paciente." }, {
-            "www-authenticate": `Bearer resource_metadata="${publicOrigin}${metadata}", scope="${read} ${write}"`
+            "www-authenticate": `Bearer resource_metadata="${mcpOrigin}${metadata}", scope="${read} ${write}"`
           });
         }
         const actor = await actorFrom(claims.sub);
@@ -151,6 +152,7 @@ export async function handler(event, context) {
     app = createApi({
       store, agenda: createAgenda(store), directory: createDirectory(pool, store), mcpVerifier,
       publicOrigin: process.env.PUBLIC_ORIGIN, issuer: process.env.OAUTH_ISSUER,
+      mcpPublicOrigin: process.env.MCP_PUBLIC_ORIGIN || process.env.PUBLIC_ORIGIN,
       webScope: process.env.WEB_SCOPE, allowedOrigins: process.env.MCP_ALLOWED_ORIGINS.split(",")
     });
   }

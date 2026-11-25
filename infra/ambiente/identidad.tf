@@ -1,20 +1,24 @@
 locals {
-  app            = var.enable_application ? 1 : 0
-  api_name       = "${local.prefix}-api"
-  audit_name     = "${local.prefix}-auditoria"
-  public_origin  = var.enable_application && var.environment == "dev" ? "https://${aws_cloudfront_distribution.portal[0].domain_name}" : var.site_origin
-  web_resource   = "${local.public_origin}/MediPoli/api"
-  mcp_resource   = "${local.public_origin}/MediPoli/mcp"
-  web_scope      = "${local.web_resource}/agenda"
-  mcp_enabled    = var.enable_application && length(var.mcp_callback_urls) > 0 ? 1 : 0
-  auth_domain    = "${local.prefix}-${var.account_id}"
-  api_zip        = "${path.module}/../../.work/build/api.zip"
-  audit_zip      = "${path.module}/../../.work/build/auditoria.zip"
-  site_bucket    = "${local.prefix}-web-${var.account_id}"
-  failure_bucket = "${local.prefix}-fallos-${var.account_id}"
-  cognito_host   = "${local.auth_domain}.auth.${var.region}.amazoncognito.com"
-  callback       = "${local.public_origin}/MediPoli/agenda/"
-  role_enabled   = var.enable_application && var.github_oidc_provider_arn != null && var.github_oidc_subject != null ? 1 : 0
+  app                 = var.enable_application ? 1 : 0
+  api_name            = "${local.prefix}-api"
+  audit_name          = "${local.prefix}-auditoria"
+  public_origin       = var.enable_application && var.environment == "dev" ? "https://${aws_cloudfront_distribution.portal[0].domain_name}" : var.site_origin
+  web_resource        = "${local.public_origin}/MediPoli/api"
+  mcp_resource        = "${local.public_origin}/MediPoli/mcp"
+  web_scope           = "${local.web_resource}/agenda"
+  mcp_enabled         = var.enable_application && length(var.mcp_callback_urls) > 0 ? 1 : 0
+  mcp_public_enabled  = local.mcp_enabled == 1 && var.environment == "dev" ? 1 : 0
+  mcp_public_origin   = local.mcp_public_enabled == 1 ? var.site_origin : local.public_origin
+  mcp_public_resource = "${local.mcp_public_origin}/MediPoli/mcp"
+  auth_domain         = "${local.prefix}-${var.account_id}"
+  api_zip             = "${path.module}/../../.work/build/api.zip"
+  audit_zip           = "${path.module}/../../.work/build/auditoria.zip"
+  site_bucket         = "${local.prefix}-web-${var.account_id}"
+  failure_bucket      = "${local.prefix}-fallos-${var.account_id}"
+  cognito_host        = "${local.auth_domain}.auth.${var.region}.amazoncognito.com"
+  callback            = "${local.public_origin}/MediPoli/agenda/"
+  web_return_urls     = var.environment == "dev" ? distinct([local.callback, "http://localhost:4321/MediPoli/agenda/", "${var.site_origin}/MediPoli/agenda/"]) : [local.callback]
+  role_enabled        = var.enable_application && var.github_oidc_provider_arn != null && var.github_oidc_subject != null ? 1 : 0
 }
 
 resource "aws_cognito_user_pool" "portal" {
@@ -67,6 +71,21 @@ resource "aws_cognito_resource_server" "mcp" {
   }
 }
 
+resource "aws_cognito_resource_server" "mcp_public" {
+  count        = local.mcp_public_enabled
+  identifier   = local.mcp_public_resource
+  name         = "Agenda MediPoli MCP dominio publico"
+  user_pool_id = aws_cognito_user_pool.portal[0].id
+  scope {
+    scope_name        = "read"
+    scope_description = "Consultar disponibilidad y citas propias"
+  }
+  scope {
+    scope_name        = "reserve"
+    scope_description = "Reservar una cita propia confirmada"
+  }
+}
+
 resource "aws_cognito_user_pool_client" "web" {
   count                                = local.app
   name                                 = "${local.prefix}-web"
@@ -76,8 +95,8 @@ resource "aws_cognito_user_pool_client" "web" {
   allowed_oauth_flows                  = ["code"]
   allowed_oauth_scopes                 = ["openid", local.web_scope]
   supported_identity_providers         = ["COGNITO"]
-  callback_urls                        = var.environment == "dev" ? [local.callback, "http://localhost:4321/MediPoli/agenda/"] : [local.callback]
-  logout_urls                          = var.environment == "dev" ? [local.callback, "http://localhost:4321/MediPoli/agenda/"] : [local.callback]
+  callback_urls                        = local.web_return_urls
+  logout_urls                          = local.web_return_urls
   prevent_user_existence_errors        = "ENABLED"
   explicit_auth_flows                  = ["ALLOW_USER_SRP_AUTH", "ALLOW_REFRESH_TOKEN_AUTH"]
   access_token_validity                = 30
@@ -98,12 +117,15 @@ resource "aws_cognito_user_pool_client" "mcp" {
   generate_secret                      = false
   allowed_oauth_flows_user_pool_client = true
   allowed_oauth_flows                  = ["code"]
-  allowed_oauth_scopes                 = ["openid", "${local.mcp_resource}/read", "${local.mcp_resource}/reserve"]
-  supported_identity_providers         = ["COGNITO"]
-  callback_urls                        = var.mcp_callback_urls
-  prevent_user_existence_errors        = "ENABLED"
-  explicit_auth_flows                  = ["ALLOW_REFRESH_TOKEN_AUTH"]
-  depends_on                           = [aws_cognito_resource_server.mcp]
+  allowed_oauth_scopes = concat(
+    ["openid", "${local.mcp_resource}/read", "${local.mcp_resource}/reserve"],
+    local.mcp_public_enabled == 1 ? ["${local.mcp_public_resource}/read", "${local.mcp_public_resource}/reserve"] : []
+  )
+  supported_identity_providers  = ["COGNITO"]
+  callback_urls                 = var.mcp_callback_urls
+  prevent_user_existence_errors = "ENABLED"
+  explicit_auth_flows           = ["ALLOW_REFRESH_TOKEN_AUTH"]
+  depends_on                    = [aws_cognito_resource_server.mcp, aws_cognito_resource_server.mcp_public]
 }
 
 resource "aws_cognito_managed_login_branding" "web" {
@@ -140,20 +162,8 @@ resource "aws_iam_role" "github" {
 }
 
 resource "aws_iam_role_policy" "github" {
-  count = local.role_enabled
-  name  = "PublicarVersionesYObjetos"
-  role  = aws_iam_role.github[0].id
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect   = "Allow"
-        Action   = ["lambda:GetFunction", "lambda:GetFunctionConfiguration", "lambda:UpdateFunctionCode", "lambda:PublishVersion", "lambda:GetAlias", "lambda:UpdateAlias"]
-        Resource = [aws_lambda_function.api[0].arn, "${aws_lambda_function.api[0].arn}:*", aws_lambda_function.audit[0].arn]
-      },
-      { Effect = "Allow", Action = ["s3:ListBucket", "s3:GetBucketLocation"], Resource = aws_s3_bucket.site[0].arn },
-      { Effect = "Allow", Action = ["s3:GetObject", "s3:GetObjectVersion", "s3:PutObject", "s3:DeleteObject"], Resource = "${aws_s3_bucket.site[0].arn}/MediPoli/*" },
-      { Effect = "Allow", Action = "cloudfront:CreateInvalidation", Resource = aws_cloudfront_distribution.portal[0].arn }
-    ]
-  })
+  count  = local.role_enabled
+  name   = "PublicarVersionesYObjetos"
+  role   = aws_iam_role.github[0].id
+  policy = local.release_policy
 }

@@ -50,7 +50,7 @@ variable "enable_audit" {
 }
 
 variable "site_origin" {
-  description = "Origen público de producción sin barra final. El ambiente dev usa su dominio de CloudFront."
+  description = "Origen público sin barra final. En dev también se autoriza como dirección de regreso de la agenda."
   type        = string
   default     = "https://aisergio.dev"
 }
@@ -78,5 +78,19 @@ variable "github_oidc_subject" {
       startswith(var.github_oidc_subject, "repo:aisergio")
     )
     error_message = "Proporcione el sujeto exacto de aisergio sin comodines."
+  }
+}
+
+variable "codebuild_release_role_name" {
+  description = "Rol del proyecto CodeBuild que publica exclusivamente en MediPoli dev."
+  type        = string
+  default     = null
+
+  validation {
+    condition = var.codebuild_release_role_name == null || (
+      var.codebuild_release_role_name == "codebuild-medipoli-dev-service-role" &&
+      var.environment == "dev" && var.enable_application
+    )
+    error_message = "El permiso de CodeBuild se limita al rol medipoli-dev con la aplicación habilitada."
   }
 }
