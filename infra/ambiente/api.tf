@@ -50,6 +50,7 @@ resource "aws_lambda_function" "api" {
       OAUTH_ISSUER        = "https://${aws_cognito_user_pool.portal[0].endpoint}"
       WEB_SCOPE           = local.web_scope
       MCP_CLIENT_ID       = try(aws_cognito_user_pool_client.mcp[0].id, "")
+      MCP_PUBLIC_ORIGIN   = local.mcp_public_origin
       MCP_ALLOWED_ORIGINS = "${local.public_origin},https://chatgpt.com,http://127.0.0.1:6274,http://localhost:6274"
     }
   }

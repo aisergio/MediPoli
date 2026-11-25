@@ -17,3 +17,7 @@ Un paciente ficticio puede entrar a la agenda de MediPoli, consultar franjas de 
 | U3-05 | Cada prueba real queda asociada a un ambiente, una fecha, una revisión y un resultado. La evidencia para el curso explica el comportamiento bajo carga y la observación del flujo sin publicar datos de acceso. |
 
 El alcance de la aplicación sigue el escenario académico de la IPS y usa solo datos ficticios. Las pruebas deben demostrar el recorrido conectando los componentes aprovisionados y la infraestructura de la Unidad 2. [Constitución de MediPoli](../../.specify/memory/constitution.md) · [Especificación de auditoría](../001-auditoria-citas/spec.md)
+
+## Acceso público de MCP
+
+Cuando la petición llega por el dominio de MediPoli, el documento de OAuth y el desafío de autenticación anuncian ese mismo origen. Los tokens se validan contra el cliente MCP, la audiencia solicitada y los permisos registrados para el recurso. El paciente confirma la reserva y puede verla desde MCP o desde la web. La demostración de AWS conserva la URL de su propio recurso.

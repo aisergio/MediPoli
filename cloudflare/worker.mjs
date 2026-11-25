@@ -25,11 +25,14 @@ export default {
     const headers = new Headers(request.headers);
     headers.delete("host");
     headers.delete("cookie");
+    headers.delete("x-medipoli-mcp-origin");
+    const mcpPath = incoming.pathname === mcpMetadata || incoming.pathname === "/MediPoli/mcp";
+    if (mcpPath && !isVideo) headers.set("x-medipoli-mcp-origin", incoming.origin);
     const forwarded = new Request(target, {
       method: request.method, headers, body: request.body, redirect: "manual",
       ...(request.body ? { duplex: "half" } : {})
     });
-    const dynamic = incoming.pathname === mcpMetadata || incoming.pathname.startsWith("/MediPoli/api/") || incoming.pathname === "/MediPoli/mcp";
+    const dynamic = mcpPath || incoming.pathname.startsWith("/MediPoli/api/");
     return fetch(forwarded, dynamic ? { cf: { cacheTtl: 0, cacheEverything: false } } : undefined);
   }
 };

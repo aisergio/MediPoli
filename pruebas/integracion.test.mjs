@@ -10,7 +10,7 @@ const publicOrigin = "https://aisergio.dev";
 const resource = publicOrigin + "/MediPoli/mcp";
 const webScope = publicOrigin + "/MediPoli/api/agenda";
 
-function setup() {
+function setup({ mcpPublicOrigin = publicOrigin } = {}) {
   const store = memoryStore([...testSlots, { pk: "PROFILE#" + patientA.id, role: "paciente", name: "Paciente A" }]);
   const agenda = createAgenda(store, { clock: () => testHour });
   const api = createApi({
@@ -18,10 +18,12 @@ function setup() {
     directory: { ensure() { throw new Error("El paciente no debería llegar aquí."); } },
     mcpVerifier: { async verify(token) {
       if (token === "expired") throw new Error("expired");
+      if (token === "alias-token") return { sub: patientA.id, aud: mcpPublicOrigin + "/MediPoli/mcp",
+        scope: mcpPublicOrigin + "/MediPoli/mcp/read" };
       return { sub: patientA.id, aud: token === "wrong-audience" ? "https://wrong.invalid" : resource,
         scope: resource + "/read" + (token === "read-only" ? "" : " " + resource + "/reserve") };
     } },
-    publicOrigin, webScope, issuer: "https://cognito-idp.us-east-2.amazonaws.com/demo",
+    publicOrigin, mcpPublicOrigin, webScope, issuer: "https://cognito-idp.us-east-2.amazonaws.com/demo",
     allowedOrigins: [publicOrigin]
   });
   const send = (path, method = "GET", { claims, headers, body } = {}) => api({
@@ -75,6 +77,23 @@ test("P-14: la herramienta MCP exige confirmación y comparte la cita con la web
   const claims = { sub: patientA.id, token_use: "access", scope: webScope };
   const page = await send("/MediPoli/api/citas", "GET", { claims });
   assert.equal(JSON.parse(page.body)[0].id, reservation.id);
+});
+
+test("El dominio MCP anuncia su audiencia y acepta sus permisos propios", async () => {
+  const alias = "https://demo.aisergio.dev";
+  const { send } = setup({ mcpPublicOrigin: alias });
+  const headers = { "x-medipoli-mcp-origin": alias, origin: alias, "content-type": "application/json",
+    accept: "application/json, text/event-stream" };
+  const metadata = await send("/.well-known/oauth-protected-resource/MediPoli/mcp", "GET", { headers });
+  assert.equal(JSON.parse(metadata.body).resource, alias + "/MediPoli/mcp");
+  assert.deepEqual(JSON.parse(metadata.body).scopes_supported, [alias + "/MediPoli/mcp/read", alias + "/MediPoli/mcp/reserve"]);
+  const body = { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "consultar_mis_citas", arguments: {} } };
+  const nativeToken = await send("/MediPoli/mcp", "POST", { body, headers: { ...headers, authorization: "Bearer valid-test-token" } });
+  assert.equal(nativeToken.statusCode, 401);
+  assert.match(nativeToken.headers["www-authenticate"], /demo\.aisergio\.dev/);
+  const accepted = await send("/MediPoli/mcp", "POST", { body, headers: { ...headers, authorization: "Bearer alias-token" } });
+  assert.equal(accepted.statusCode, 200);
+  assert.deepEqual(JSON.parse(JSON.parse(accepted.body).result.content[0].text), []);
 });
 
 test("P-09: duplicado de Streams y reproceso quedan en un solo registro", async () => {
