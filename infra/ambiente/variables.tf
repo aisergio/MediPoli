@@ -80,3 +80,17 @@ variable "github_oidc_subject" {
     error_message = "Proporcione el sujeto exacto de aisergio sin comodines."
   }
 }
+
+variable "codebuild_release_role_name" {
+  description = "Rol del proyecto CodeBuild que publica exclusivamente en MediPoli dev."
+  type        = string
+  default     = null
+
+  validation {
+    condition = var.codebuild_release_role_name == null || (
+      var.codebuild_release_role_name == "codebuild-medipoli-dev-service-role" &&
+      var.environment == "dev" && var.enable_application
+    )
+    error_message = "El permiso de CodeBuild se limita al rol medipoli-dev con la aplicación habilitada."
+  }
+}

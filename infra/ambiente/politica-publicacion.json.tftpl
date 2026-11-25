@@ -1,0 +1,71 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ActualizarFuncionesDeMediPoli",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:GetFunction",
+        "lambda:GetFunctionConfiguration",
+        "lambda:UpdateFunctionCode"
+      ],
+      "Resource": [
+        "${api_arn}",
+        "${audit_arn}"
+      ]
+    },
+    {
+      "Sid": "PublicarVersionDeApi",
+      "Effect": "Allow",
+      "Action": "lambda:PublishVersion",
+      "Resource": "${api_arn}"
+    },
+    {
+      "Sid": "ActualizarAliasDeApi",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:GetAlias",
+        "lambda:UpdateAlias"
+      ],
+      "Resource": [
+        "${api_arn}",
+        "${api_arn}:live",
+        "${api_arn}:candidate"
+      ]
+    },
+    {
+      "Sid": "ConsultarUbicacionDelPortal",
+      "Effect": "Allow",
+      "Action": "s3:GetBucketLocation",
+      "Resource": "${site_arn}"
+    },
+    {
+      "Sid": "ListarArchivosDeMediPoli",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "${site_arn}",
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": "MediPoli/*"
+        }
+      }
+    },
+    {
+      "Sid": "ActualizarArchivosDelPortal",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:GetObjectVersion",
+        "s3:PutObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": "${site_arn}/MediPoli/*"
+    },
+    {
+      "Sid": "ActualizarCacheDeMediPoli",
+      "Effect": "Allow",
+      "Action": "cloudfront:CreateInvalidation",
+      "Resource": "${distribution_arn}"
+    }
+  ]
+}

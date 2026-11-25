@@ -140,20 +140,8 @@ resource "aws_iam_role" "github" {
 }
 
 resource "aws_iam_role_policy" "github" {
-  count = local.role_enabled
-  name  = "PublicarVersionesYObjetos"
-  role  = aws_iam_role.github[0].id
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect   = "Allow"
-        Action   = ["lambda:GetFunction", "lambda:GetFunctionConfiguration", "lambda:UpdateFunctionCode", "lambda:PublishVersion", "lambda:GetAlias", "lambda:UpdateAlias"]
-        Resource = [aws_lambda_function.api[0].arn, "${aws_lambda_function.api[0].arn}:*", aws_lambda_function.audit[0].arn]
-      },
-      { Effect = "Allow", Action = ["s3:ListBucket", "s3:GetBucketLocation"], Resource = aws_s3_bucket.site[0].arn },
-      { Effect = "Allow", Action = ["s3:GetObject", "s3:GetObjectVersion", "s3:PutObject", "s3:DeleteObject"], Resource = "${aws_s3_bucket.site[0].arn}/MediPoli/*" },
-      { Effect = "Allow", Action = "cloudfront:CreateInvalidation", Resource = aws_cloudfront_distribution.portal[0].arn }
-    ]
-  })
+  count  = local.role_enabled
+  name   = "PublicarVersionesYObjetos"
+  role   = aws_iam_role.github[0].id
+  policy = local.release_policy
 }

@@ -1,0 +1,29 @@
+version: 0.2
+
+env:
+  shell: bash
+
+phases:
+  install:
+    on-failure: ABORT
+    runtime-versions:
+      nodejs: 24
+    commands:
+      - node --version
+      - npm install --global pnpm@11.25.0
+      - pnpm install --frozen-lockfile --ignore-scripts
+  pre_build:
+    on-failure: ABORT
+    commands:
+      - pnpm audit --prod --audit-level high
+      - pnpm run check:policy
+      - pnpm test
+      - pnpm run package:lambda
+      - pnpm run build
+  build:
+    on-failure: ABORT
+    commands:
+      - test "$MEDIPOLI_ENV" = dev
+      - test "$RELEASE_MODE" = directo-dev
+      - test "$AWS_REGION" = us-east-2
+      - node scripts/publicar.mjs

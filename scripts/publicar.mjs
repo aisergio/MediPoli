@@ -125,7 +125,7 @@ try {
   summary = { ...summary, outcome: summary?.outcome ?? "revertir", rolledBack: Boolean(touched), stable, candidate };
   throw error;
 } finally {
-  const result = JSON.stringify({ ...summary, utc: new Date().toISOString(), commit: env.GITHUB_SHA ?? "local" }, null, 2);
+  const result = JSON.stringify({ ...summary, utc: new Date().toISOString(), commit: env.CODEBUILD_RESOLVED_SOURCE_VERSION ?? env.GITHUB_SHA ?? "local" }, null, 2);
   await writeFile(".work/release/resultado.json", result);
   console.log(result);
 }
