@@ -1,8 +1,15 @@
 flowchart TB
-  PR["Pull request"] --> V["Pruebas, auditoría y Terraform"]
-  V --> R["Revisión y main"]
-  R --> B["Build con lock · ZIP y sitio"]
-  B --> O["Entorno designado · OIDC temporal"]
-  O --> P["Despliegue de candidato"]
-  P --> C["Verificación y tráfico gradual"]
-  C --> E["Promover o revertir · Evidencia"]
+  PR["Cambio en aisergio/MediPoli"] --> GH["GitHub Actions<br/>Agenda y Terraform"]
+  PR --> H["Push a la rama de publicación dev"]
+  H --> F{"Coincide con la rama<br/>y con archivos de aplicación"}
+  F -->|"Sí"| CC["CodeConnections<br/>medipoli-github"]
+  CC --> CB["CodeBuild<br/>Node 24 y pnpm congelado"]
+  CB --> VG{"Pruebas, auditoría<br/>y compilación correctas"}
+  VG -->|"Sí"| RL["Rol de servicio de medipoli-dev<br/>Permisos de publicación en AWS dev"]
+  RL --> L["Publicar ZIP y verificar la versión candidata"]
+  L --> D["Actualizar el portal y promover la versión"]
+  D --> G{"¿Responde la versión<br/>esperada?"}
+  G -->|"Sí"| OK["Registrar commit, versión y resultados"]
+  G -->|"No"| RB["Restaurar versión estable y HTML"]
+  RB --> OK
+  VG -->|"No"| STOP["Detener la publicación y conservar el registro"]

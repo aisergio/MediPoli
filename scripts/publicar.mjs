@@ -30,19 +30,46 @@ function setAlias(which, version, weights, revisionId) {
     ...(revisionId ? ["--revision-id", revisionId] : [])]);
 }
 
-async function probe(path, authorized = false) {
+async function probe(path, authorized = false, timeoutMs = 5000) {
   const start = performance.now();
   try {
     const response = await fetch(new URL(path, api), {
       headers: authorized ? { authorization: "Bearer " + env.SMOKE_ACCESS_TOKEN } : {},
       cache: "no-store",
-      signal: AbortSignal.timeout(5000)
+      signal: AbortSignal.timeout(timeoutMs)
     });
     const version = response.headers.get("x-medipoli-version");
     const data = await response.json().catch(() => null);
     return { status: response.status, version, ms: Math.round(performance.now() - start), data };
   } catch {
     return { status: 599, version: null, ms: Math.round(performance.now() - start), data: null };
+  }
+}
+
+const healthChecks = {};
+
+async function confirmVersion(label, path, expected) {
+  const start = performance.now();
+  const deadline = start + 20_000;
+  let attempts = 0;
+  let last;
+  let healthy;
+  do {
+    attempts++;
+    const remaining = Math.max(1, Math.ceil(deadline - performance.now()));
+    last = await probe(path, false, Math.min(5000, remaining));
+    healthy = last.status === 200 && last.version === expected && last.data?.ok === true;
+    if (healthy) break;
+    const pause = Math.min(650, deadline - performance.now());
+    if (pause > 0) await sleep(pause);
+  } while (performance.now() < deadline);
+
+  healthChecks[label] = {
+    expected, observed: last.version, status: last.status, attempts,
+    elapsedMs: Math.round(performance.now() - start)
+  };
+  if (!healthy) {
+    throw new Error(`La comprobación ${label} terminó con HTTP ${last.status} y versión ${last.version ?? "desconocida"}. Se esperaba la versión ${expected}.`);
   }
 }
 
@@ -55,16 +82,14 @@ function putHtml(file) {
 const originalAlias = aws(["lambda", "get-alias", "--function-name", functionName, "--name", "live"]);
 const stable = originalAlias.FunctionVersion;
 if (Object.keys(originalAlias.RoutingConfig?.AdditionalVersionWeights ?? {}).length) throw new Error("Ya hay un Canary activo.");
-const before = await probe("/MediPoli/api/health");
-if (before.status !== 200 || before.version !== stable) throw new Error("La versión estable no superó la comprobación inicial.");
+await confirmVersion("estable", "/MediPoli/api/health", stable);
 const auditFunction = name + "-auditoria";
 const deployed = aws(["lambda", "update-function-code", "--function-name", functionName, "--zip-file", "fileb://.work/build/api.zip", "--publish"]);
 const candidate = deployed.Version;
 if (!/^\d+$/.test(candidate ?? "")) throw new Error("Lambda no devolvió una versión publicada.");
 aws(["lambda", "wait", "function-updated-v2", "--function-name", functionName], { json: false });
 setAlias("candidate", candidate, {});
-const tested = await probe("/MediPoli/api/candidate-health");
-if (tested.status !== 200 || tested.data?.ok !== true || tested.version !== candidate) throw new Error("Falló la comprobación de la versión candidata.");
+await confirmVersion("candidata", "/MediPoli/api/candidate-health", candidate);
 
 let touched;
 let summary;
@@ -101,31 +126,54 @@ try {
     written.set(key, priorVersion);
   }
   if (candidate !== stable) touched = setAlias("live", candidate, {}, touched?.RevisionId ?? originalAlias.RevisionId);
-  const after = await probe("/MediPoli/api/health");
-  if (after.status !== 200 || after.version !== candidate) throw new Error("La versión promovida no respondió como se esperaba.");
+  await confirmVersion("promovida", "/MediPoli/api/health", candidate);
   aws(["lambda", "update-function-code", "--function-name", auditFunction, "--zip-file", "fileb://.work/build/auditoria.zip"]);
   aws(["lambda", "wait", "function-updated-v2", "--function-name", auditFunction], { json: false });
   aws(["cloudfront", "create-invalidation", "--distribution-id", env.MEDIPOLI_CF_ID, "--paths", "/MediPoli/*"]);
   summary = { ...summary, outcome: "publicado", stable, candidate, mode, html: files.length };
 } catch (error) {
+  const restorationErrors = [];
+  let rolledBack = false;
+  let restoredHtml = 0;
   if (touched) {
-    setAlias("live", stable, {}, touched.RevisionId);
-    const restored = await probe("/MediPoli/api/health");
-    if (restored.status !== 200 || restored.version !== stable) throw new Error("No se comprobó el rollback de Lambda.");
+    try {
+      setAlias("live", stable, {}, touched.RevisionId);
+      await confirmVersion("restaurada", "/MediPoli/api/health", stable);
+      rolledBack = true;
+    } catch (failure) {
+      restorationErrors.push(failure);
+    }
   }
   for (const [key, version] of written) {
-    if (!version) {
-      aws(["s3api", "delete-object", "--bucket", bucket, "--key", key]);
-      continue;
+    try {
+      if (version) {
+        const copySource = [bucket, ...key.split("/")].map(encodeURIComponent).join("/") + "?versionId=" + encodeURIComponent(version);
+        aws(["s3api", "copy-object", "--bucket", bucket, "--key", key, "--copy-source", copySource]);
+      } else {
+        aws(["s3api", "delete-object", "--bucket", bucket, "--key", key]);
+      }
+      restoredHtml++;
+    } catch (failure) {
+      restorationErrors.push(failure);
     }
-    const copySource = [bucket, ...key.split("/")].map(encodeURIComponent).join("/") + "?versionId=" + encodeURIComponent(version);
-    aws(["s3api", "copy-object", "--bucket", bucket, "--key", key, "--copy-source", copySource]);
   }
-  if (written.size) aws(["cloudfront", "create-invalidation", "--distribution-id", env.MEDIPOLI_CF_ID, "--paths", "/MediPoli/*"]);
-  summary = { ...summary, outcome: summary?.outcome ?? "revertir", rolledBack: Boolean(touched), stable, candidate };
+  if (written.size) {
+    try {
+      aws(["cloudfront", "create-invalidation", "--distribution-id", env.MEDIPOLI_CF_ID, "--paths", "/MediPoli/*"]);
+    } catch (failure) {
+      restorationErrors.push(failure);
+    }
+  }
+  summary = {
+    ...summary, outcome: restorationErrors.length ? "recuperacion-incompleta" : (summary?.outcome ?? "revertir"),
+    rolledBack, restoredHtml, stable, candidate
+  };
+  if (restorationErrors.length) {
+    throw new AggregateError([error, ...restorationErrors], "La publicación falló y la restauración quedó incompleta.");
+  }
   throw error;
 } finally {
-  const result = JSON.stringify({ ...summary, utc: new Date().toISOString(), commit: env.CODEBUILD_RESOLVED_SOURCE_VERSION ?? env.GITHUB_SHA ?? "local" }, null, 2);
+  const result = JSON.stringify({ ...summary, healthChecks, utc: new Date().toISOString(), commit: env.CODEBUILD_RESOLVED_SOURCE_VERSION ?? env.GITHUB_SHA ?? "local" }, null, 2);
   await writeFile(".work/release/resultado.json", result);
   console.log(result);
 }
