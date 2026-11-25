@@ -1,7 +1,7 @@
 flowchart TB
   WEB["Navegador · aisergio.dev/MediPoli/"] --> W["Cloudflare · Worker medipoli"]
   W --> CF["CloudFront HTTPS · AWS dev"]
-  MCP["Cliente MCP"] --> CF
+  MCP["Cliente MCP · aisergio.dev/MediPoli/mcp"] --> W
   WEB & MCP --> ID["Cognito · Identidad y OAuth"]
   CF --> STATIC["S3 privado · Sitio"]
   CF --> API["API Gateway HTTP"]
