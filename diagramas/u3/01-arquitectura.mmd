@@ -1,5 +1,6 @@
 flowchart TB
-  WEB["Navegador · Astro y React"] --> CF["CloudFront HTTPS · dev"]
+  WEB["Navegador · aisergio.dev/MediPoli/"] --> W["Cloudflare · Worker medipoli"]
+  W --> CF["CloudFront HTTPS · AWS dev"]
   MCP["Cliente MCP"] --> CF
   WEB & MCP --> ID["Cognito · Identidad y OAuth"]
   CF --> STATIC["S3 privado · Sitio"]
