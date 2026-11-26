@@ -1,5 +1,5 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, GetCommand, QueryCommand, ScanCommand, TransactWriteCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, GetCommand, QueryCommand, ScanCommand, TransactWriteCommand, PutCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { StoreConflict } from "./agenda.mjs";
 
 const indexes = { patient: "por-paciente", professional: "por-profesional", availability: "por-disponibilidad" };
@@ -52,6 +52,21 @@ export function createDynamoStore(tableName, sdk = new DynamoDBClient({ maxAttem
         FilterExpression: "entity = :kind",
         ExpressionAttributeValues: { ":kind": "APPOINTMENT" }
       });
+    },
+    async takeAssistantRequest(day, limit, expiresAt) {
+      try {
+        await client.send(new UpdateCommand({
+          TableName, Key: { pk: `ASISTENTE#${day}` },
+          UpdateExpression: "SET expiresAt = if_not_exists(expiresAt, :expiration) ADD #used :one",
+          ConditionExpression: "attribute_not_exists(#used) OR #used < :limit",
+          ExpressionAttributeNames: { "#used": "used" },
+          ExpressionAttributeValues: { ":one": 1, ":limit": limit, ":expiration": expiresAt }
+        }));
+        return true;
+      } catch (error) {
+        if (error.name === "ConditionalCheckFailedException") return false;
+        throw error;
+      }
     },
     async atomic(actions) {
       const TransactItems = actions.map(({ item, deleteKey, condition }) => item

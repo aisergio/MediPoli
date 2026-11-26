@@ -1,3 +1,7 @@
+locals {
+  assistant_active = var.enable_application && var.environment == "dev" && var.region == "us-east-2"
+}
+
 resource "aws_cloudwatch_log_group" "api" {
   count             = local.app
   name              = "/aws/lambda/${local.api_name}"
@@ -31,6 +35,40 @@ resource "aws_iam_role_policy" "api" {
   })
 }
 
+resource "aws_iam_role_policy" "assistant" {
+  count = local.assistant_active ? 1 : 0
+  name  = "AsistenteMediPoli"
+  role  = aws_iam_role.api[0].id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = "bedrock-mantle:CreateInference"
+        Resource = "arn:aws:bedrock-mantle:${var.region}:${var.account_id}:project/default"
+        Condition = {
+          StringEquals = {
+            "bedrock-mantle:Model" = "openai.gpt-oss-20b"
+            "aws:RequestedRegion"  = var.region
+          }
+          ArnEquals = {
+            "lambda:SourceFunctionArn" = "arn:aws:lambda:${var.region}:${var.account_id}:function:${local.api_name}"
+          }
+        }
+      },
+      {
+        Effect   = "Allow"
+        Action   = "dynamodb:UpdateItem"
+        Resource = module.data.agenda_arn
+        Condition = {
+          "ForAllValues:StringLike" = { "dynamodb:LeadingKeys" = ["ASISTENTE#*"] }
+          Null                      = { "dynamodb:LeadingKeys" = "false" }
+        }
+      }
+    ]
+  })
+}
+
 resource "aws_lambda_function" "api" {
   count            = local.app
   function_name    = local.api_name
@@ -43,7 +81,7 @@ resource "aws_lambda_function" "api" {
   memory_size      = 256
   timeout          = 15
   environment {
-    variables = {
+    variables = merge({
       AGENDA_TABLE        = module.data.agenda_name
       USER_POOL_ID        = aws_cognito_user_pool.portal[0].id
       PUBLIC_ORIGIN       = local.public_origin
@@ -52,9 +90,9 @@ resource "aws_lambda_function" "api" {
       MCP_CLIENT_ID       = try(aws_cognito_user_pool_client.mcp[0].id, "")
       MCP_PUBLIC_ORIGIN   = local.mcp_public_origin
       MCP_ALLOWED_ORIGINS = "${local.public_origin},https://chatgpt.com,http://127.0.0.1:6274,http://localhost:6274"
-    }
+    }, local.assistant_active ? { MEDIPOLI_ASSISTANT = "true" } : {})
   }
-  depends_on = [aws_iam_role_policy.api]
+  depends_on = [aws_iam_role_policy.api, aws_iam_role_policy.assistant]
   lifecycle {
     # El release modifica el paquete y los alias. Terraform administra los recursos.
     ignore_changes = [filename, source_code_hash]

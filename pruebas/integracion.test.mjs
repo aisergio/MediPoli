@@ -10,11 +10,11 @@ const publicOrigin = "https://aisergio.dev";
 const resource = publicOrigin + "/MediPoli/mcp";
 const webScope = publicOrigin + "/MediPoli/api/agenda";
 
-function setup({ mcpPublicOrigin = publicOrigin } = {}) {
+function setup({ mcpPublicOrigin = publicOrigin, assistant } = {}) {
   const store = memoryStore([...testSlots, { pk: "PROFILE#" + patientA.id, role: "paciente", name: "Paciente A" }]);
   const agenda = createAgenda(store, { clock: () => testHour });
   const api = createApi({
-    agenda, store,
+    agenda, store, assistant,
     directory: { ensure() { throw new Error("El paciente no debería llegar aquí."); } },
     mcpVerifier: { async verify(token) {
       if (token === "expired") throw new Error("expired");
@@ -41,6 +41,27 @@ test("P-02: API exige token de acceso y scope; P-08: el paciente no puede crear 
   assert.equal((await send("/MediPoli/api/perfil", "GET", { claims: { ...claims, token_use: "id" } })).statusCode, 401);
   assert.equal((await send("/MediPoli/api/perfil", "GET", { claims })).statusCode, 200);
   assert.equal((await send("/MediPoli/api/admin/altas", "POST", { claims, body: {} })).statusCode, 403);
+});
+
+test("IA-01: el asistente requiere un perfil autenticado y aparece cuando está habilitado", async () => {
+  const queries = [];
+  const { send } = setup({ async assistant(query) {
+    queries.push(query);
+    return { respuesta: "Medicina general y odontología", fuente: "bedrock" };
+  } });
+  const claims = { sub: patientA.id, token_use: "access", scope: webScope };
+  const path = "/MediPoli/api/asistente";
+  const body = { consulta: "servicios" };
+  assert.equal((await send(path, "POST", { body })).statusCode, 401);
+  assert.equal((await send(path, "POST", { claims: { ...claims, sub: "sin-perfil" }, body })).statusCode, 403);
+  assert.deepEqual(queries, []);
+  const profile = JSON.parse((await send("/MediPoli/api/perfil", "GET", { claims })).body);
+  assert.equal(profile.asistente, true);
+  const response = await send(path, "POST", { claims, body: { ...body, texto: "campo no utilizado" } });
+  assert.equal(response.statusCode, 200);
+  assert.equal(JSON.parse(response.body).fuente, "bedrock");
+  assert.deepEqual(queries, ["servicios"]);
+  assert.equal((await setup().send(path, "POST", { claims, body })).statusCode, 404);
 });
 
 test("P-14: el MCP anuncia OAuth y verifica origen, audiencia y token", async () => {

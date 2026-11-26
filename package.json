@@ -16,9 +16,12 @@
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.900.0",
     "@aws-sdk/client-dynamodb": "^3.900.0",
+    "@aws-sdk/credential-provider-env": "3.972.84",
     "@aws-sdk/lib-dynamodb": "^3.900.0",
     "@aws-sdk/util-dynamodb": "^3.900.0",
     "@modelcontextprotocol/sdk": "1.32.2",
+    "@smithy/core": "3.41.0",
+    "@smithy/signature-v4": "5.7.5",
     "aws-jwt-verify": "5.2.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",
