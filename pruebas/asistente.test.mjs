@@ -49,3 +49,16 @@ test("IA-03: el catálogo responde al agotar el cupo, fallar la generación o re
   assert.deepEqual(await assistant("sedes"), expected);
   assert.equal(calls, 2);
 });
+
+test("IA-02: acepta una frase natural con las tres sedes y comprueba su sector", async () => {
+  let answer = "La Sede Norte queda en Usaquén, la Sede Occidente está en Engativá y la Sede Centro está en La Candelaria.";
+  const assistant = createAssistant({
+    async takeAssistantRequest() { return true; }
+  }, {
+    async complete() { return answer; }
+  });
+
+  assert.deepEqual(await assistant("sedes"), { respuesta: answer, fuente: "bedrock" });
+  answer = "Sede Norte en La Candelaria, Sede Occidente en Engativá y Sede Centro en Usaquén.";
+  assert.equal((await assistant("sedes")).fuente, "catalogo");
+});

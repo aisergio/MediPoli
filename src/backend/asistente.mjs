@@ -15,6 +15,17 @@ const introductions = {
 };
 const dailyLimit = 100;
 
+function matchesCatalog(query, text) {
+  const normalized = text.toLowerCase();
+  if (query === "servicios") return facts.servicios.every(service => normalized.includes(service));
+  const locations = CLINICS.map(({ name, sector }) => ({
+    start: normalized.indexOf(name.toLowerCase()),
+    sector: sector.toLowerCase()
+  })).sort((a, b) => a.start - b.start);
+  return locations.every(({ start, sector }, index) =>
+    start >= 0 && normalized.slice(start, locations[index + 1]?.start).includes(sector));
+}
+
 function bedrockCompleter(region) {
   const host = `bedrock-mantle.${region}.api.aws`;
   const path = "/v1/chat/completions";
@@ -26,7 +37,7 @@ function bedrockCompleter(region) {
       messages: [
         {
           role: "system",
-          content: `MediPoli es una IPS ficticia. Responde con una frase breve en español. Usa solo estos datos y conserva las expresiones del catálogo. ${catalog}.`
+          content: `MediPoli es una IPS ficticia. Responde con una frase breve en español usando este catálogo. ${catalog}. Si mencionas sedes, escribe cada sede seguida de su sector.`
         },
         { role: "user", content: question }
       ],
@@ -64,8 +75,7 @@ export function createAssistant(store, { region, complete = bedrockCompleter(reg
       if (!accepted) return fallback;
       const answer = await complete(ASSISTANT_QUERIES[query], catalog);
       const text = typeof answer === "string" ? answer.replace(/\s+/g, " ").trim() : "";
-      const normalized = text.toLowerCase();
-      if (text.length <= 500 && entries.every(entry => normalized.includes(entry.toLowerCase()))) {
+      if (text.length <= 500 && matchesCatalog(query, text)) {
         return { respuesta: text, fuente: "bedrock" };
       }
     } catch {
