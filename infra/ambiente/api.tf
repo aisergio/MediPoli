@@ -23,7 +23,7 @@ resource "aws_iam_role_policy" "api" {
   role  = aws_iam_role.api[0].id
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
+    Statement = concat([
       { Effect = "Allow", Action = ["logs:CreateLogStream", "logs:PutLogEvents"], Resource = "${aws_cloudwatch_log_group.api[0].arn}:*" },
       {
         Effect   = "Allow"
@@ -31,41 +31,33 @@ resource "aws_iam_role_policy" "api" {
         Resource = [module.data.agenda_arn, "${module.data.agenda_arn}/index/*"]
       },
       { Effect = "Allow", Action = ["cognito-idp:AdminCreateUser", "cognito-idp:AdminGetUser"], Resource = aws_cognito_user_pool.portal[0].arn }
-    ]
-  })
-}
-
-resource "aws_iam_role_policy" "assistant" {
-  count = local.assistant_active ? 1 : 0
-  name  = "AsistenteMediPoli"
-  role  = aws_iam_role.api[0].id
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect   = "Allow"
-        Action   = "bedrock-mantle:CreateInference"
-        Resource = "arn:aws:bedrock-mantle:${var.region}:${var.account_id}:project/default"
-        Condition = {
-          StringEquals = {
-            "bedrock-mantle:Model" = "openai.gpt-oss-20b"
-            "aws:RequestedRegion"  = var.region
+      ], [for statement in [
+        {
+          Sid      = "InferenciaAsistenteOhio"
+          Effect   = "Allow"
+          Action   = "bedrock-mantle:CreateInference"
+          Resource = "arn:aws:bedrock-mantle:${var.region}:${var.account_id}:project/default"
+          Condition = {
+            StringEquals = {
+              "bedrock-mantle:Model" = "openai.gpt-oss-20b"
+              "aws:RequestedRegion"  = var.region
+            }
+            ArnEquals = {
+              "lambda:SourceFunctionArn" = "arn:aws:lambda:${var.region}:${var.account_id}:function:${local.api_name}"
+            }
           }
-          ArnEquals = {
-            "lambda:SourceFunctionArn" = "arn:aws:lambda:${var.region}:${var.account_id}:function:${local.api_name}"
+        },
+        {
+          Sid      = "CupoAsistente"
+          Effect   = "Allow"
+          Action   = "dynamodb:UpdateItem"
+          Resource = module.data.agenda_arn
+          Condition = {
+            "ForAllValues:StringLike" = { "dynamodb:LeadingKeys" = ["ASISTENTE#*"] }
+            Null                      = { "dynamodb:LeadingKeys" = "false" }
           }
         }
-      },
-      {
-        Effect   = "Allow"
-        Action   = "dynamodb:UpdateItem"
-        Resource = module.data.agenda_arn
-        Condition = {
-          "ForAllValues:StringLike" = { "dynamodb:LeadingKeys" = ["ASISTENTE#*"] }
-          Null                      = { "dynamodb:LeadingKeys" = "false" }
-        }
-      }
-    ]
+    ] : statement if local.assistant_active])
   })
 }
 
@@ -92,7 +84,7 @@ resource "aws_lambda_function" "api" {
       MCP_ALLOWED_ORIGINS = "${local.public_origin},https://chatgpt.com,http://127.0.0.1:6274,http://localhost:6274"
     }, local.assistant_active ? { MEDIPOLI_ASSISTANT = "true" } : {})
   }
-  depends_on = [aws_iam_role_policy.api, aws_iam_role_policy.assistant]
+  depends_on = [aws_iam_role_policy.api]
   lifecycle {
     # El release modifica el paquete y los alias. Terraform administra los recursos.
     ignore_changes = [filename, source_code_hash]
