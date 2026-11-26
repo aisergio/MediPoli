@@ -12,7 +12,7 @@ test("IA-02 e IA-04: el asistente envía solo datos de la consulta elegida y res
     clock,
     async complete(...args) {
       sent.push(args);
-      return "MediPoli ofrece medicina general y odontología.";
+      return "MediPoli ofrece **medicina general** y **odontología**.";
     }
   });
 

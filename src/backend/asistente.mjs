@@ -37,7 +37,7 @@ function bedrockCompleter(region) {
       messages: [
         {
           role: "system",
-          content: `MediPoli es una IPS ficticia. Responde con una frase breve en español usando este catálogo. ${catalog}. Si mencionas sedes, escribe cada sede seguida de su sector.`
+          content: `MediPoli es una IPS ficticia. Responde con una frase breve de texto plano en español. Usa únicamente estos datos del catálogo. ${catalog}. Escribe el nombre de cada sede seguido del sector que le corresponde.`
         },
         { role: "user", content: question }
       ],
@@ -74,7 +74,7 @@ export function createAssistant(store, { region, complete = bedrockCompleter(reg
       const accepted = await store.takeAssistantRequest(dateBogota(now), dailyLimit, Math.floor(now.getTime() / 1000) + 172800);
       if (!accepted) return fallback;
       const answer = await complete(ASSISTANT_QUERIES[query], catalog);
-      const text = typeof answer === "string" ? answer.replace(/\s+/g, " ").trim() : "";
+      const text = typeof answer === "string" ? answer.replaceAll("**", "").replace(/\s+/g, " ").trim() : "";
       if (text.length <= 500 && matchesCatalog(query, text)) {
         return { respuesta: text, fuente: "bedrock" };
       }
