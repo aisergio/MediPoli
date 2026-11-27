@@ -1,7 +1,8 @@
-import { mkdir, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { setTimeout as sleep } from "node:timers/promises";
 import { aws, assertAccount } from "./aws-cli.mjs";
-import { evaluateCanary } from "./canary.mjs";
+import { canaryPatientName, createRehearsalArchive, evaluateCanary, readCanaryPatient } from "./canary.mjs";
+import { dateBogota } from "../src/shared/catalogo.mjs";
 
 const env = process.env;
 const stage = env.MEDIPOLI_ENV;
@@ -22,6 +23,7 @@ if (api.protocol !== "https:" || !/^[a-z0-9]+\.execute-api\.[a-z0-9-]+\.amazonaw
 if (mode === "canary" && !env.SMOKE_ACCESS_TOKEN) throw new Error("Se requiere un token temporal de un paciente ficticio para medir disponibilidad.");
 const fault = env.MEDIPOLI_TEST_ROLLBACK === "true";
 if (fault && (stage !== "dev" || mode !== "canary")) throw new Error("El ensayo de reversión solo se ejecuta con Canary en dev.");
+const syntheticSubject = stage === "dev" && mode === "canary" ? readCanaryPatient(env.SMOKE_ACCESS_TOKEN) : null;
 await mkdir(".work/release", { recursive: true });
 
 function setAlias(which, version, weights, revisionId) {
@@ -36,11 +38,15 @@ async function probe(path, authorized = false, timeoutMs = 5000) {
     const response = await fetch(new URL(path, api), {
       headers: authorized ? { authorization: "Bearer " + env.SMOKE_ACCESS_TOKEN } : {},
       cache: "no-store",
+      redirect: "error",
       signal: AbortSignal.timeout(timeoutMs)
     });
     const version = response.headers.get("x-medipoli-version");
     const data = await response.json().catch(() => null);
-    return { status: response.status, version, ms: Math.round(performance.now() - start), data };
+    return {
+      status: response.status, version, ms: Math.round(performance.now() - start), data,
+      controlledFailure: response.headers.get("x-medipoli-canary-fault") === "controlled"
+    };
   } catch {
     return { status: 599, version: null, ms: Math.round(performance.now() - start), data: null };
   }
@@ -83,37 +89,67 @@ const originalAlias = aws(["lambda", "get-alias", "--function-name", functionNam
 const stable = originalAlias.FunctionVersion;
 if (Object.keys(originalAlias.RoutingConfig?.AdditionalVersionWeights ?? {}).length) throw new Error("Ya hay un Canary activo.");
 await confirmVersion("estable", "/MediPoli/api/health", stable);
+const queries = new URLSearchParams({ date: env.CANARY_DATE ?? dateBogota(), service: "medicina-general" });
+const sampleRoute = "/MediPoli/api/disponibilidad?" + queries;
+if (mode === "canary") {
+  const profile = await probe("/MediPoli/api/perfil", true);
+  const available = await probe(sampleRoute, true);
+  if (profile.status !== 200 || profile.version !== stable || profile.data?.role !== "paciente" ||
+    (syntheticSubject && profile.data?.name !== canaryPatientName) ||
+    available.status !== 200 || available.version !== stable || !Array.isArray(available.data)) {
+    throw new Error("La versión estable no superó la comprobación autenticada de disponibilidad.");
+  }
+  healthChecks.disponibilidadEstable = { status: available.status, version: available.version, elapsedMs: available.ms };
+}
 const auditFunction = name + "-auditoria";
-const deployed = aws(["lambda", "update-function-code", "--function-name", functionName, "--zip-file", "fileb://.work/build/api.zip", "--publish"]);
-const candidate = deployed.Version;
-if (!/^\d+$/.test(candidate ?? "")) throw new Error("Lambda no devolvió una versión publicada.");
-aws(["lambda", "wait", "function-updated-v2", "--function-name", functionName], { json: false });
-setAlias("candidate", candidate, {});
-await confirmVersion("candidata", "/MediPoli/api/candidate-health", candidate);
-
+const healthyArchive = ".work/build/api.zip";
+const priorCandidate = aws(["lambda", "get-alias", "--function-name", functionName, "--name", "candidate"]);
+const candidateWeight = .1;
+let candidate;
+let candidateAlias;
 let touched;
 let summary;
+let restoreHealthyCode = false;
 const files = (await readdir("dist", { recursive: true })).filter(file => file.endsWith(".html"));
 if (!files.includes("index.html")) throw new Error("Falta la salida HTML de Astro.");
 const written = new Map();
 try {
-  if (mode === "canary" && candidate !== stable) {
-    touched = setAlias("live", stable, { [candidate]: .1 }, originalAlias.RevisionId);
-    const queries = new URLSearchParams({ date: env.CANARY_DATE ?? new Date().toISOString().slice(0, 10), service: "medicina-general" });
-    const route = "/MediPoli/api/disponibilidad?" + queries;
+  let archive = healthyArchive;
+  if (fault) {
+    archive = ".work/build/api-ensayo.zip";
+    await writeFile(archive, createRehearsalArchive(await readFile(healthyArchive), syntheticSubject));
+    restoreHealthyCode = true;
+  }
+  const deployed = aws(["lambda", "update-function-code", "--function-name", functionName, "--zip-file", "fileb://" + archive, "--publish"]);
+  candidate = deployed.Version;
+  if (!/^\d+$/.test(candidate ?? "") || (mode === "canary" && candidate === stable)) {
+    throw new Error("Lambda debe publicar una versión distinta para el Canary.");
+  }
+  aws(["lambda", "wait", "function-updated-v2", "--function-name", functionName], { json: false });
+  candidateAlias = setAlias("candidate", candidate, {}, priorCandidate.RevisionId);
+  await confirmVersion("candidata", "/MediPoli/api/candidate-health", candidate);
+
+  if (mode === "canary") {
+    touched = setAlias("live", stable, { [candidate]: candidateWeight }, originalAlias.RevisionId);
+    if (touched.FunctionVersion !== stable || touched.RoutingConfig?.AdditionalVersionWeights?.[candidate] !== candidateWeight) {
+      throw new Error("Lambda no confirmó el peso de la candidata.");
+    }
     const samples = [];
     const started = Date.now();
     await Promise.all(Array.from({ length: 5 }, async (_, worker) => {
       await sleep(worker * 130);
       while (Date.now() - started < 300_000) {
-        const received = await probe(route, true);
-        samples.push({ status: received.status, version: received.version, ms: received.ms });
+        const { status, version, ms, controlledFailure } = await probe(sampleRoute, true);
+        samples.push({ status, version, ms, controlledFailure });
         await sleep(850);
       }
     }));
-    summary = evaluateCanary(samples, candidate, Date.now() - started);
-    if (fault) summary = { ...summary, outcome: "revertir", rehearsal: true };
+    summary = {
+      ...evaluateCanary(samples, candidate, Date.now() - started, stable), candidateWeight, rehearsal: fault
+    };
+    if (fault && summary.controlledFailures === 0) throw new Error("El ensayo no observó el fallo controlado.");
     if (summary.outcome !== "promover") throw new Error("El Canary no cumplió los criterios de promoción.");
+    if (fault) throw new Error("La versión de ensayo requiere reversión.");
   }
   aws(["s3", "sync", "dist/", `s3://${bucket}/MediPoli/`, "--exclude", "*.html", "--cache-control", "public,max-age=86400", "--only-show-errors"], { json: false });
   // Mantener los activos con hash permite que la página anterior siga funcionando.
@@ -137,7 +173,10 @@ try {
   let restoredHtml = 0;
   if (touched) {
     try {
-      setAlias("live", stable, {}, touched.RevisionId);
+      const restored = setAlias("live", stable, {}, touched.RevisionId);
+      if (restored.FunctionVersion !== stable || Object.keys(restored.RoutingConfig?.AdditionalVersionWeights ?? {}).length) {
+        throw new Error("El alias estable no confirmó la retirada del peso adicional.");
+      }
       await confirmVersion("restaurada", "/MediPoli/api/health", stable);
       rolledBack = true;
     } catch (failure) {
@@ -164,9 +203,26 @@ try {
       restorationErrors.push(failure);
     }
   }
+  if (fault && candidateAlias) {
+    try {
+      setAlias("candidate", priorCandidate.FunctionVersion, priorCandidate.RoutingConfig?.AdditionalVersionWeights ?? {}, candidateAlias.RevisionId);
+      await confirmVersion("candidataRestaurada", "/MediPoli/api/candidate-health", priorCandidate.FunctionVersion);
+    } catch (failure) {
+      restorationErrors.push(failure);
+    }
+  }
+  if (restoreHealthyCode) {
+    try {
+      aws(["lambda", "update-function-code", "--function-name", functionName, "--zip-file", "fileb://" + healthyArchive, "--no-publish"]);
+      aws(["lambda", "wait", "function-updated-v2", "--function-name", functionName], { json: false });
+    } catch (failure) {
+      restorationErrors.push(failure);
+    }
+  }
   summary = {
-    ...summary, outcome: restorationErrors.length ? "recuperacion-incompleta" : (summary?.outcome ?? "revertir"),
-    rolledBack, restoredHtml, stable, candidate
+    ...summary, outcome: restorationErrors.length ? "recuperacion-incompleta" :
+      (summary?.outcome === "inconcluso" ? "inconcluso" : "revertir"),
+    rolledBack, restoredHtml, stable, candidate, mode
   };
   if (restorationErrors.length) {
     throw new AggregateError([error, ...restorationErrors], "La publicación falló y la restauración quedó incompleta.");

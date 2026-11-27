@@ -24,6 +24,6 @@ phases:
     on-failure: ABORT
     commands:
       - test "$MEDIPOLI_ENV" = dev
-      - test "$RELEASE_MODE" = directo-dev
+      - test "$RELEASE_MODE" = directo-dev || test "$RELEASE_MODE" = canary
       - test "$AWS_REGION" = us-east-2
       - node scripts/publicar.mjs
