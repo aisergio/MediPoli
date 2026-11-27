@@ -1,8 +1,18 @@
+---
+title: Publicación gradual y reversión de MediPoli en desarrollo
+---
 flowchart TB
-  A["Versión estable"] --> B["Publicar y verificar candidata"]
-  B --> C["Alias live · 90 % estable · 10 % candidata"]
-  C --> D["5 minutos con consultas de prueba"]
-  D --> E{"100 muestras candidatas<br/>Errores ≤ 1 % · p95 ≤ 2 s"}
-  E -->|"Pasa"| P["Promover candidata al 100 %"]
-  E -->|"Falla o muestra insuficiente"| R["Restaurar versión estable"]
-  P & R --> X["Verificar salud y guardar métricas"]
+  A["CodeBuild valida la revisión<br/>y comprueba la versión estable"]
+  A --> B["Publica y verifica la candidata de Lambda"]
+  B --> C["Alias live<br/>90 % estable y 10 % candidata"]
+  C --> D["La sesión ficticia consulta disponibilidad<br/>durante al menos cinco minutos"]
+  D --> E{"Candidata con 100 muestras o más<br/>Errores ≤ 1 % y p95 ≤ 2 s"}
+  D -.-> F["En el ensayo de fallo, solo el paciente ficticio<br/>recibe HTTP 503 de la candidata"]
+  E -->|"Criterios cumplidos"| P["La candidata recibe el 100 % del tráfico"]
+  E -->|"Fallo o muestra insuficiente"| R["La estable recibe el 100 % del tráfico"]
+  P --> X["Verificar el alias y la salud<br/>Guardar versiones, errores, p95 y p99"]
+  R --> X
+  classDef promoted fill:#ddf6ed,stroke:#188363,color:#163f35
+  classDef reverted fill:#fff2d9,stroke:#b37815,color:#533400
+  class P promoted
+  class R,F reverted
