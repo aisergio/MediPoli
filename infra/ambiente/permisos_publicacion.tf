@@ -4,6 +4,7 @@ locals {
     audit_arn        = aws_lambda_function.audit[0].arn
     site_arn         = aws_s3_bucket.site[0].arn
     distribution_arn = aws_cloudfront_distribution.portal[0].arn
+    canary_token_arn = "arn:aws:ssm:${var.region}:${var.account_id}:parameter/medipoli/dev/canary/access-token"
   }) : null
 }
 
