@@ -1,46 +1,77 @@
 ---
+import { getImage, Image } from "astro:assets";
+import reception from "../assets/recepcion-medipoli.webp";
+import receptionPortrait from "../assets/recepcion-medipoli-vertical.webp";
 import Portal from "../layouts/Portal.astro";
 import { CLINICS } from "../shared/catalogo.mjs";
+
 const base = import.meta.env.BASE_URL;
+const portrait = await getImage({
+  src: receptionPortrait,
+  widths: [420, receptionPortrait.width],
+  format: "webp",
+  quality: 82,
+});
 const services = [
   { title: "Medicina general", text: "Agenda una consulta de medicina general en la sede y el horario que elijas.", icon: "+" },
   { title: "Odontología", text: "Consulta los horarios de odontología y reserva una cita con el profesional disponible.", icon: "◇" }
 ];
 ---
 <Portal>
-  <section class="hero" aria-labelledby="inicio">
-    <div class="frame hero-inner">
-      <div>
-        <p class="eyebrow">IPS MediPoli · EPS SaludCol</p>
-        <h1 id="inicio">Agenda tu cita en Bogotá</h1>
-        <p class="lede">Elige medicina general u odontología, consulta disponibilidad en nuestras tres sedes y gestiona tus citas desde un solo lugar.</p>
-        <a class="primary" href={base + "agenda/"}>Consultar disponibilidad <span aria-hidden="true">→</span></a>
+  <div class="home-page">
+    <picture class="home-backdrop" aria-hidden="true">
+      <source
+        media="(max-aspect-ratio: 1/1)"
+        srcset={portrait.srcSet.attribute}
+        sizes="(max-aspect-ratio: 2/3) 66.8vh, 100vw"
+        width={receptionPortrait.width}
+        height={receptionPortrait.height}
+      />
+      <Image
+        src={reception}
+        alt=""
+        widths={[960, 1280, reception.width]}
+        sizes="(max-aspect-ratio: 16/9) 178vh, 100vw"
+        format="webp"
+        quality={82}
+        loading="eager"
+        fetchpriority="high"
+      />
+    </picture>
+    <section class="hero" aria-labelledby="inicio">
+      <div class="frame hero-inner">
+        <div class="hero-copy">
+          <p class="eyebrow">IPS MediPoli · EPS SaludCol</p>
+          <h1 id="inicio">Agenda tu cita en Bogotá</h1>
+          <p class="lede">Elige medicina general u odontología, consulta disponibilidad en nuestras tres sedes y gestiona tus citas desde un solo lugar.</p>
+          <a class="primary" href={base + "agenda/"}>Consultar disponibilidad <span aria-hidden="true">→</span></a>
+        </div>
+        <aside class="hero-panel" aria-label="Información de citas">
+          <span class="panel-icon" aria-hidden="true">+</span>
+          <h2>Atención programada</h2>
+          <p>Para afiliados del régimen contributivo de la EPS ficticia SaludCol.</p>
+          <dl>
+            <div><dt>Sedes</dt><dd>Centro, Norte y Occidente</dd></div>
+            <div><dt>Duración</dt><dd>30 minutos por cita</dd></div>
+            <div><dt>Pago</dt><dd>Presencial en la sede</dd></div>
+          </dl>
+        </aside>
       </div>
-      <aside class="hero-panel" aria-label="Información de citas">
-        <span class="panel-icon" aria-hidden="true">+</span>
-        <h2>Atención programada</h2>
-        <p>Para afiliados del régimen contributivo de la EPS ficticia SaludCol.</p>
-        <dl>
-          <div><dt>Sedes</dt><dd>Centro, Norte y Occidente</dd></div>
-          <div><dt>Duración</dt><dd>30 minutos por cita</dd></div>
-          <div><dt>Pago</dt><dd>Presencial en la sede</dd></div>
-        </dl>
-      </aside>
-    </div>
-  </section>
-  <section id="servicios" class="frame content-section">
-    <h2>Servicios</h2>
-    <div class="service-grid">
-      {services.map(service => <article class="card">
-        <span class="card-icon" aria-hidden="true">{service.icon}</span>
-        <h3>{service.title}</h3><p>{service.text}</p>
-      </article>)}
-    </div>
-  </section>
-  <section id="sedes" class="frame content-section locations">
-    <h2>Sedes en Bogotá</h2>
-    <div class="location-grid">
-      {CLINICS.map(clinic => <article class="card"><h3>{clinic.name}</h3><p>{clinic.sector} · Bogotá</p><a href={base + 'agenda/?sede=' + clinic.id}>Consultar horarios<span class="sr-only"> de {clinic.name}</span> <span aria-hidden="true">→</span></a></article>)}
-    </div>
-  </section>
+    </section>
+    <section id="servicios" class="frame content-section">
+      <h2>Servicios</h2>
+      <div class="service-grid">
+        {services.map(service => <article class="card">
+          <span class="card-icon" aria-hidden="true">{service.icon}</span>
+          <h3>{service.title}</h3><p>{service.text}</p>
+        </article>)}
+      </div>
+    </section>
+    <section id="sedes" class="frame content-section locations">
+      <h2>Sedes en Bogotá</h2>
+      <div class="location-grid">
+        {CLINICS.map(clinic => <article class="card"><h3>{clinic.name}</h3><p>{clinic.sector} · Bogotá</p><a href={base + 'agenda/?sede=' + clinic.id}>Consultar horarios<span class="sr-only"> de {clinic.name}</span> <span aria-hidden="true">→</span></a></article>)}
+      </div>
+    </section>
+  </div>
 </Portal>
