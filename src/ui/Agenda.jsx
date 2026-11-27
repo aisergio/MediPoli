@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { CLINICS, SERVICES, dateBogota } from "../shared/catalogo.mjs";
+import { ASSISTANT_QUERIES, CLINICS, SERVICES, dateBogota } from "../shared/catalogo.mjs";
 
 const statusName = { BOOKED: "Confirmada", CANCELLED: "Cancelada" };
 const formatter = new Intl.DateTimeFormat("es-CO", { timeZone: "America/Bogota", dateStyle: "medium", timeStyle: "short" });
@@ -59,6 +59,7 @@ export default function Agenda({ base, cognitoDomain, clientId, webScope }) {
   const [roleInput, setRoleInput] = useState("paciente");
   const [report, setReport] = useState(null);
   const [newLogin, setNewLogin] = useState(null);
+  const [assistantReply, setAssistantReply] = useState(null);
   const keyRef = useRef(new Map());
   const confirmRef = useRef(null);
   const endpoint = base + "api/";
@@ -76,6 +77,7 @@ export default function Agenda({ base, cognitoDomain, clientId, webScope }) {
         sessionStorage.removeItem("medipoli-token");
         setToken(null);
         setProfile(null);
+        setAssistantReply(null);
       }
       const error = new Error(value.error ?? "El servicio no pudo responder.");
       error.status = response.status;
@@ -153,6 +155,7 @@ export default function Agenda({ base, cognitoDomain, clientId, webScope }) {
     setToken(null);
     setProfile(null);
     setAppointments([]);
+    setAssistantReply(null);
     const params = new URLSearchParams({ client_id: clientId, logout_uri: redirect });
     location.assign(`https://${cognitoDomain}/logout?${params}`);
   }
@@ -163,6 +166,13 @@ export default function Agenda({ base, cognitoDomain, clientId, webScope }) {
     run(async () => {
       setNewLogin(null);
       setNewLogin(await call("admin/altas", { method: "POST", body: data }));
+    });
+  }
+
+  function askAssistant(consulta) {
+    return run(async () => {
+      setAssistantReply(null);
+      setAssistantReply(await call("asistente", { method: "POST", body: { consulta } }));
     });
   }
 
@@ -177,6 +187,18 @@ export default function Agenda({ base, cognitoDomain, clientId, webScope }) {
     </section>}
     {profile && <>
       <div className="signed-in"><p><strong>{profile.name}</strong> · {profile.role}</p><button className="secondary" onClick={signOut}>Cerrar sesión</button></div>
+      {profile.asistente && <section className="card" aria-labelledby="asistente-medipoli">
+        <h2 id="asistente-medipoli">Asistente de MediPoli</h2>
+        <div className="buttons">
+          {Object.entries(ASSISTANT_QUERIES).map(([id, question]) =>
+            <button className="secondary" type="button" key={id} disabled={busy} onClick={() => askAssistant(id)}>{question}</button>)}
+        </div>
+        <div role="status">
+          {assistantReply && <p className="notice">{assistantReply.respuesta}<br />
+            <small>{assistantReply.fuente === "bedrock" ? "Consulta asistida por IA" : "Respuesta del catálogo institucional"}</small>
+          </p>}
+        </div>
+      </section>}
       {profile.role === "paciente" && <section className="card" aria-labelledby="agenda-buscar">
         <h2 id="agenda-buscar">{reschedule ? "Selecciona una nueva franja" : "Consulta disponibilidad"}</h2>
         {reschedule && <p>{cleanLabel(reschedule)} <button className="secondary" onClick={() => { setReschedule(null); setSlots(null); }}>Salir de reprogramación</button></p>}

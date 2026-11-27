@@ -1,5 +1,6 @@
 import { CognitoJwtVerifier } from "aws-jwt-verify";
 import { createAgenda, HttpError, requireRole } from "./agenda.mjs";
+import { createAssistant } from "./asistente.mjs";
 import { createDynamoStore } from "./dynamodb.mjs";
 import { createDirectory, makePassword, validateProfile } from "./identidad.mjs";
 import { handleMcp } from "./mcp.mjs";
@@ -25,7 +26,7 @@ function jsonBody(event) {
   }
 }
 
-export function createApi({ store, agenda, directory, mcpVerifier, publicOrigin, mcpPublicOrigin = publicOrigin, issuer, webScope, allowedOrigins }) {
+export function createApi({ store, agenda, assistant, directory, mcpVerifier, publicOrigin, mcpPublicOrigin = publicOrigin, issuer, webScope, allowedOrigins }) {
   const metadata = "/.well-known/oauth-protected-resource/MediPoli/mcp";
 
   async function actorFrom(sub) {
@@ -48,6 +49,7 @@ export function createApi({ store, agenda, directory, mcpVerifier, publicOrigin,
     const write = `${resource}/reserve`;
     const key = headers["idempotency-key"];
     let route = "not-found";
+    let assistantSource;
     async function respond() {
       if (method === "GET" && ["/MediPoli/api/health", "/MediPoli/api/candidate-health"].includes(path)) {
         route = "health";
@@ -87,7 +89,13 @@ export function createApi({ store, agenda, directory, mcpVerifier, publicOrigin,
       const operation = path.slice("/MediPoli/api/".length);
       if (method === "GET" && operation === "perfil") {
         route = "profile";
-        return json(200, { role: actor.role, name: actor.name });
+        return json(200, { role: actor.role, name: actor.name, ...(assistant && { asistente: true }) });
+      }
+      if (method === "POST" && operation === "asistente" && assistant) {
+        route = "assistant";
+        const answer = await assistant(jsonBody(event).consulta);
+        assistantSource = answer.fuente;
+        return json(200, answer);
       }
       if (method === "GET" && operation === "disponibilidad") {
         route = "availability";
@@ -134,7 +142,7 @@ export function createApi({ store, agenda, directory, mcpVerifier, publicOrigin,
     response.headers["x-medipoli-version"] = version;
     response.headers["x-request-id"] = requestId;
     console.log(JSON.stringify({
-      requestId, route, method, status: response.statusCode,
+      requestId, route, method, status: response.statusCode, assistantSource,
       durationMs: Math.round(performance.now() - start), version
     }));
     return response;
@@ -151,6 +159,7 @@ export async function handler(event, context) {
       : null;
     app = createApi({
       store, agenda: createAgenda(store), directory: createDirectory(pool, store), mcpVerifier,
+      assistant: process.env.MEDIPOLI_ASSISTANT === "true" ? createAssistant(store, { region: process.env.AWS_REGION }) : null,
       publicOrigin: process.env.PUBLIC_ORIGIN, issuer: process.env.OAUTH_ISSUER,
       mcpPublicOrigin: process.env.MCP_PUBLIC_ORIGIN || process.env.PUBLIC_ORIGIN,
       webScope: process.env.WEB_SCOPE, allowedOrigins: process.env.MCP_ALLOWED_ORIGINS.split(",")

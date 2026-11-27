@@ -9,6 +9,11 @@ export const CLINICS = [
   { id: "occidente", name: "Sede Occidente", sector: "Engativá" }
 ];
 
+export const ASSISTANT_QUERIES = {
+  sedes: "¿Dónde quedan las sedes?",
+  servicios: "¿Qué servicios ofrece MediPoli?"
+};
+
 export const OT_ZONE = "America/Bogota";
 const localDate = new Intl.DateTimeFormat("en-CA", { timeZone: OT_ZONE, year: "numeric", month: "2-digit", day: "2-digit" });
 export const dateBogota = (date = new Date()) => localDate.format(date);

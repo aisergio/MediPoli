@@ -14,6 +14,9 @@ importers:
       '@aws-sdk/client-dynamodb':
         specifier: ^3.900.0
         version: 3.1170.0
+      '@aws-sdk/credential-provider-env':
+        specifier: 3.972.84
+        version: 3.972.84
       '@aws-sdk/lib-dynamodb':
         specifier: ^3.900.0
         version: 3.1170.0(@aws-sdk/client-dynamodb@3.1170.0)
@@ -23,6 +26,12 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: 1.32.2
         version: 1.32.2(zod@4.6.7)
+      '@smithy/core':
+        specifier: 3.41.0
+        version: 3.41.0
+      '@smithy/signature-v4':
+        specifier: 5.7.5
+        version: 5.7.5
       aws-jwt-verify:
         specifier: 5.2.1
         version: 5.2.1
