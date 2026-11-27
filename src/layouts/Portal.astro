@@ -1,6 +1,6 @@
 ---
 import "../styles/portal.css";
-const { title = "MediPoli | Agenda de citas" } = Astro.props;
+const { title = "MediPoli | Agenda de citas", bodyClass } = Astro.props;
 const base = import.meta.env.BASE_URL;
 ---
 <!doctype html>
@@ -11,7 +11,7 @@ const base = import.meta.env.BASE_URL;
     <meta name="description" content="Portal académico MediPoli para la gestión de citas de medicina general y odontología en Bogotá." />
     <title>{title}</title>
   </head>
-  <body>
+  <body class={bodyClass}>
     <a class="skip" href="#contenido">Saltar al contenido</a>
     <header class="topbar">
       <div class="frame topbar-inner">
