@@ -6,25 +6,14 @@ import { HttpError } from "./agenda.mjs";
 
 const list = new Intl.ListFormat("es-CO", { type: "conjunction" });
 const facts = {
-  sedes: CLINICS.map(({ name, sector }) => `${name} en ${sector}`),
-  servicios: Object.values(SERVICES).map(name => name.toLowerCase())
+  sedes: Object.fromEntries(CLINICS.map(({ id, name, sector }) => [id, `${name} en ${sector}`])),
+  servicios: Object.fromEntries(Object.entries(SERVICES).map(([id, name]) => [id, name.toLowerCase()]))
 };
 const introductions = {
   sedes: "Las sedes de MediPoli son",
   servicios: "En MediPoli ofrecemos"
 };
 const dailyLimit = 100;
-
-function matchesCatalog(query, text) {
-  const normalized = text.toLowerCase();
-  if (query === "servicios") return facts.servicios.every(service => normalized.includes(service));
-  const locations = CLINICS.map(({ name, sector }) => ({
-    start: normalized.indexOf(name.toLowerCase()),
-    sector: sector.toLowerCase()
-  })).sort((a, b) => a.start - b.start);
-  return locations.every(({ start, sector }, index) =>
-    start >= 0 && normalized.slice(start, locations[index + 1]?.start).includes(sector));
-}
 
 function bedrockCompleter(region) {
   const host = `bedrock-mantle.${region}.api.aws`;
@@ -37,7 +26,7 @@ function bedrockCompleter(region) {
       messages: [
         {
           role: "system",
-          content: `MediPoli es una IPS ficticia. Responde con una frase breve de texto plano en español. Usa únicamente estos datos del catálogo. ${catalog}. Escribe el nombre de cada sede seguido del sector que le corresponde.`
+          content: `Elige todas las entradas del catálogo de la IPS ficticia MediPoli que corresponden a la pregunta. Devuelve únicamente un objeto JSON con la propiedad "ids", que contiene los identificadores del catálogo como cadenas. Elige una sola categoría y usa sus identificadores exactos. Catálogo ${JSON.stringify(catalog)}.`
         },
         { role: "user", content: question }
       ],
@@ -57,7 +46,11 @@ function bedrockCompleter(region) {
       return null;
     }
     const { choices } = await response.json();
-    return choices?.[0]?.finish_reason === "stop" ? choices[0].message?.content : null;
+    const choice = choices?.[0];
+    if (choice?.finish_reason !== "stop" || typeof choice.message?.content !== "string") return null;
+    const content = choice.message.content.trim();
+    const json = content.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i)?.[1] ?? content;
+    return JSON.parse(json)?.ids;
   };
 }
 
@@ -67,16 +60,17 @@ export function createAssistant(store, { region, complete = bedrockCompleter(reg
       throw new HttpError(400, "Elige una de las consultas del asistente.");
     }
     const entries = facts[query];
-    const catalog = list.format(entries);
-    const fallback = { respuesta: `${introductions[query]} ${catalog}.`, fuente: "catalogo" };
+    const ids = Object.keys(entries);
+    const format = selected => `${introductions[query]} ${list.format(selected.map(id => entries[id]))}.`;
+    const fallback = { respuesta: format(ids), fuente: "catalogo" };
     const now = clock();
     try {
       const accepted = await store.takeAssistantRequest(dateBogota(now), dailyLimit, Math.floor(now.getTime() / 1000) + 172800);
       if (!accepted) return fallback;
-      const answer = await complete(ASSISTANT_QUERIES[query], catalog);
-      const text = typeof answer === "string" ? answer.replaceAll("**", "").replace(/\s+/g, " ").trim() : "";
-      if (text.length <= 500 && matchesCatalog(query, text)) {
-        return { respuesta: text, fuente: "bedrock" };
+      const selected = await complete(ASSISTANT_QUERIES[query], facts);
+      if (Array.isArray(selected) && selected.length === ids.length && new Set(selected).size === ids.length &&
+        selected.every(id => typeof id === "string" && Object.hasOwn(entries, id))) {
+        return { respuesta: format(selected), fuente: "bedrock" };
       }
     } catch {
       return fallback;

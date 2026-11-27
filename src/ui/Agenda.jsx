@@ -195,7 +195,7 @@ export default function Agenda({ base, cognitoDomain, clientId, webScope }) {
         </div>
         <div role="status">
           {assistantReply && <p className="notice">{assistantReply.respuesta}<br />
-            <small>{assistantReply.fuente === "bedrock" ? "Respuesta generada con IA" : "Respuesta del catálogo institucional"}</small>
+            <small>{assistantReply.fuente === "bedrock" ? "Consulta asistida por IA" : "Respuesta del catálogo institucional"}</small>
           </p>}
         </div>
       </section>}
