@@ -26,13 +26,14 @@ nav { display: flex; gap: clamp(.6rem, 3vw, 1.85rem); align-items: center; }
 nav a { text-decoration: none; color: var(--navy); font-weight: 620; }
 .nav-action, .secondary { border: 1px solid #5792b0; color: #0d5077; background: #fff; padding: .55rem .92rem; border-radius: .55rem; font-weight: 650; }
 .home-page {
-  position: relative;
-  clip-path: inset(0);
+  isolation: isolate;
+  min-height: 100vh;
   background: var(--pale);
 }
 .home-backdrop {
   position: fixed;
   inset: 0;
+  min-height: 100lvh;
   z-index: -1;
   pointer-events: none;
 }
@@ -83,6 +84,7 @@ button:disabled { opacity: .66; cursor: wait; }
 .card p:last-child { margin-bottom: 0; }
 .card a { font-weight: 650; }
 .site-footer { background: #edf5fa; border-top: 1px solid var(--stroke); color: #365971; }
+.home-page .site-footer { background: rgb(237 245 250 / 88%); }
 .footer-inner { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .4rem 2rem; padding-block: 25px 35px; }
 .footer-brand { color: var(--navy); font-weight: 750; }
 .footer-inner p { margin: .35rem 0; font-size: .88rem; max-width: 56ch; }
@@ -122,14 +124,6 @@ th { color: var(--navy); background: var(--pale); }
 }
 @media (max-aspect-ratio: 1/1) {
   .home-backdrop img { object-position: 62% center; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .home-backdrop {
-    position: absolute;
-    inset-block-end: auto;
-    height: 100vh;
-    height: 100svh;
-  }
 }
 @media (max-width: 440px) {
   .topbar-inner { flex-wrap: wrap; padding-block: .8rem; }
